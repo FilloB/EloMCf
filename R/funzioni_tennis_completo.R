@@ -2232,7 +2232,10 @@ simulate_tournament <- function(X, sim =  10000, WELO = FALSE) {
     prob.2 <- sort(prob.2, decreasing = TRUE)
     prob.1 <- sort(prob.1, decreasing = TRUE)
     
-    return(list(prob.64 = prob.64, prob.32 = prob.32, prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1))
+    odd.1 <- 1 / prob.1
+    odd.1 <- sort(odd.1, increasing = TRUE
+    
+    return(list(prob.64 = prob.64, prob.32 = prob.32, prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
   }
   else if (n == 32){
     for (t in 1:sim) {
@@ -2367,7 +2370,10 @@ simulate_tournament <- function(X, sim =  10000, WELO = FALSE) {
     prob.2 <- sort(prob.2, decreasing = TRUE)
     prob.1 <- sort(prob.1, decreasing = TRUE)
     
-    return(list(prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1))
+    odd.1 <- 1 / prob.1
+    odd.1 <- sort(odd.1, increasing = TRUE
+    
+    return(list(prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
   }
   
   else if (n == 16){
@@ -2471,7 +2477,10 @@ simulate_tournament <- function(X, sim =  10000, WELO = FALSE) {
     prob.2 <- sort(prob.2, decreasing = TRUE)
     prob.1 <- sort(prob.1, decreasing = TRUE)
     
-    return(list(prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1))
+    odd.1 <- 1 / prob.1
+    odd.1 <- sort(odd.1, increasing = TRUE
+    
+    return(list(prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
   }
   
   else if (n == 8){
@@ -2557,7 +2566,10 @@ simulate_tournament <- function(X, sim =  10000, WELO = FALSE) {
     prob.2 <- sort(prob.2, decreasing = TRUE)
     prob.1 <- sort(prob.1, decreasing = TRUE)
     
-    return(list(prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1))
+    odd.1 <- 1 / prob.1
+    odd.1 <- sort(odd.1, increasing = TRUE)
+    
+    return(list(prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
   }
   
   
@@ -2625,7 +2637,13 @@ simulate_tournament <- function(X, sim =  10000, WELO = FALSE) {
     prob.2 <- sort(prob.2, decreasing = TRUE)
     prob.1 <- sort(prob.1, decreasing = TRUE)
     
-    return(list(prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1))
+  
+    odd.1 <- 1 / prob.1
+    
+    return(list(prob.4 = prob.4,
+                prob.2 = prob.2, 
+                prob.1 = prob.1, odd.1 = odd.1))
+    
   }
   
   else if (n == 2){
@@ -2672,10 +2690,12 @@ simulate_tournament <- function(X, sim =  10000, WELO = FALSE) {
     
     prob.2 <- table(table.2) / sim
     prob.1 <- table(table.1) / sim
+    odd.1 <- 1/prob.1
     
     prob.2 <- sort(prob.2, decreasing = TRUE)
     prob.1 <- sort(prob.1, decreasing = TRUE)
+    odd.1 <- sort(odd.1, increasing = TRUE)
     
-    return(list(prob.2 = prob.2, prob.1 = prob.1))
+    return(list(prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
   }
 }
