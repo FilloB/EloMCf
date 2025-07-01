@@ -542,7 +542,7 @@ compute_elo <- function (x, W = "GAMES", SP = 1500, K = "Kovalchik", s=0.5, CI =
 
 
 
-
+#############CREATE TABLE#######################################à
 
 create_table <- function(df, player_names) {
   
@@ -610,6 +610,8 @@ create_table <- function(df, player_names) {
   
   return(matches)
 }
+
+###############PLAYERS_ADJ####################################à
 players_adj <- function(x){
   x<- stri_trans_general(x, "Latin-ASCII")
   x[x == "Cerúndolo F."] <- "Cerundolo F." 
@@ -636,6 +638,7 @@ players_adj <- function(x){
   x[x == "Jones J."] <- "Pinnington Jones J." 
   x[x == "Carballes R."] <- "Carballes Baena R." 
   x[x == "Jong J."] <- "De Jong J." 
+  x[x == "Bautista R."] <- "Bautista Agut R." 
   
   
   #DONNE:
