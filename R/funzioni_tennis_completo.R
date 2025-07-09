@@ -538,6 +538,394 @@ compute_elo <- function (x, W = "GAMES", SP = 1500, K = "Kovalchik", s=0.5, CI =
   return(res)
 }
 
+primo_turno <- function(df, player_names, Serie = NA) {
+  
+  P_i <- c()
+  P_j <- c()
+  Outcome_P_i <- c()
+  Outcome_P_j <- c()
+  n_partite_i <- c()
+  n_partite_j <- c()
+  Elo_i_before_match <- c()
+  Elo_j_before_match <- c()
+  Elo_pi_hat <- c()
+  Elo_i_after_match <- c()
+  Elo_j_after_match <- c()
+  
+ if (Serie == "ATP250") {
+  sub_vector <- player_names[25:length(player_names)]
+  
+  Winner <- character(12)
+  Loser <- character(12)
+  
+  for (j in 1:12) {
+    player1 <- player_names[(j-1)*2+1]
+    player2 <- player_names[(j-1)*2 + 2]
+    
+    if (player1 %in% sub_vector) {
+      Winner[j] <- player1
+      Loser[j] <- player2
+    } else {
+      Winner[j] <- player2
+      Loser[j] <- player1
+    }
+  }
+  
+  df_1 <- data.frame(Winner, Loser, stringsAsFactors = FALSE)
+  print(df_1)
+
+  for (i in 1:nrow(df_1)) {
+    
+    P_i[i] <- df_1$Winner[i]
+    P_j[i] <- df_1$Loser[i]
+    Outcome_P_i[i] <- 1
+    Outcome_P_j[i] <- 0
+    
+    indx_i <- tail(which(df$P_i == df_1$Winner[i]| df$P_j == df_1$Winner[i]), 1)
+    if (length(indx_i) == 0) {
+      Elo_i_before_match[i] <- 1500
+    } else {
+      if (df$P_i[indx_i] == df_1$Winner[i]) {
+        Elo_i_before_match[i] <- df$Elo_i_after_match[indx_i]
+      } else {
+        Elo_i_before_match[i] <- df$Elo_j_after_match[indx_i]
+      }
+    }
+    
+    indx_j <- tail(which(df$P_i == df_1$Loser[i] | df$P_j == df_1$Loser[i]), 1)
+    if (length(indx_j) == 0) {
+      Elo_j_before_match[i] <- 1500
+    } else {
+      if (df$P_i[indx_j] == Loser[i]) {
+        Elo_j_before_match[i] <- df$Elo_i_after_match[indx_j]
+      } else {
+        Elo_j_before_match[i] <- df$Elo_j_after_match[indx_j]
+      }
+    }
+    
+    
+    n_partite_i_sx <- sum(
+      df$P_i == df_1$Winner[i] & df$Comment == "Completed"
+    )
+    
+    n_partite_i_dx <- sum(
+      df$P_j == df_1$Winner[i] & df$Comment == "Completed"
+    )
+    
+    n_partite_i <- n_partite_i_sx + n_partite_i_dx + 1 
+    
+    n_partite_j_sx <- sum(
+      df$P_i == df_1$Loser[i] & df$Comment == "Completed"
+    )
+    
+    n_partite_j_dx <- sum(
+      df$P_j == df_1$Loser[i] & df$Comment == "Completed"
+    )
+    
+    n_partite_j <- n_partite_j_sx + n_partite_j_dx + 1 
+    
+    
+    
+    Elo_pi_hat[i] <- tennis_prob(Elo_i_before_match[i], Elo_j_before_match[i])
+      
+
+    K_Winner <- 250/(n_partite_i + 5)^0.4
+    K_Loser <- 250/(n_partite_j + 5)^0.4
+      
+    #Calcolo ELO after match
+
+    Elo_i_after_match[i] <- Elo_i_before_match[i] + K_Winner * (1 - Elo_pi_hat[i])
+    Elo_j_after_match[i] <- Elo_j_before_match[i] - K_Loser * (1 - Elo_pi_hat[i])
+  }
+  df_2 <- data.frame(
+    P_i, P_j, Outcome_P_i, Outcome_P_j, Elo_i_before_match, Elo_j_before_match, Elo_pi_hat, Elo_i_after_match, Elo_j_after_match
+  )
+  df_merged <- bind_rows(df, df_2)
+  
+  return(df_merged)
+ }
+  else if (Serie == "ATP500") {
+    
+      sub_vector <- player_names[33:length(player_names)]
+      
+      Winner <- character(16)
+      Loser <- character(16)
+      
+      for (j in 1:16) {
+        player1 <- player_names[(j-1)*2+1]
+        player2 <- player_names[(j-1)*2 + 2]
+        
+        if (player1 %in% sub_vector) {
+          Winner[j] <- player1
+          Loser[j] <- player2
+        } else {
+          Winner[j] <- player2
+          Loser[j] <- player1
+        }
+      }
+      
+      df_1 <- data.frame(Winner, Loser, stringsAsFactors = FALSE)
+      print(df_1)
+      
+      for (i in 1:nrow(df_1)) {
+        
+        P_i[i] <- df_1$Winner[i]
+        P_j[i] <- df_1$Loser[i]
+        Outcome_P_i[i] <- 1
+        Outcome_P_j[i] <- 0
+        
+        indx_i <- tail(which(df$P_i == df_1$Winner[i]| df$P_j == df_1$Winner[i]), 1)
+        if (length(indx_i) == 0) {
+          Elo_i_before_match[i] <- 1500
+        } else {
+          if (df$P_i[indx_i] == df_1$Winner[i]) {
+            Elo_i_before_match[i] <- df$Elo_i_after_match[indx_i]
+          } else {
+            Elo_i_before_match[i] <- df$Elo_j_after_match[indx_i]
+          }
+        }
+        
+        indx_j <- tail(which(df$P_i == df_1$Loser[i] | df$P_j == df_1$Loser[i]), 1)
+        if (length(indx_j) == 0) {
+          Elo_j_before_match[i] <- 1500
+        } else {
+          if (df$P_i[indx_j] == Loser[i]) {
+            Elo_j_before_match[i] <- df$Elo_i_after_match[indx_j]
+          } else {
+            Elo_j_before_match[i] <- df$Elo_j_after_match[indx_j]
+          }
+        }
+        
+        
+        n_partite_i_sx <- sum(
+          df$P_i == df_1$Winner[i] & df$Comment == "Completed"
+        )
+        
+        n_partite_i_dx <- sum(
+          df$P_j == df_1$Winner[i] & df$Comment == "Completed"
+        )
+        
+        n_partite_i <- n_partite_i_sx + n_partite_i_dx + 1 
+        
+        n_partite_j_sx <- sum(
+          df$P_i == df_1$Loser[i] & df$Comment == "Completed"
+        )
+        
+        n_partite_j_dx <- sum(
+          df$P_j == df_1$Loser[i] & df$Comment == "Completed"
+        )
+        
+        n_partite_j <- n_partite_j_sx + n_partite_j_dx + 1 
+        
+        
+        
+        Elo_pi_hat[i] <- tennis_prob(Elo_i_before_match[i], Elo_j_before_match[i])
+        
+        
+        K_Winner <- 250/(n_partite_i + 5)^0.4
+        K_Loser <- 250/(n_partite_j + 5)^0.4
+        
+        #Calcolo ELO after match
+        
+        Elo_i_after_match[i] <- Elo_i_before_match[i] + K_Winner * (1 - Elo_pi_hat[i])
+        Elo_j_after_match[i] <- Elo_j_before_match[i] - K_Loser * (1 - Elo_pi_hat[i])
+      }
+      df_2 <- data.frame(
+        P_i, P_j, Outcome_P_i, Outcome_P_j, Elo_i_before_match, Elo_j_before_match, Elo_pi_hat, Elo_i_after_match, Elo_j_after_match
+      )
+      df_merged <- bind_rows(df, df_2)
+      
+      return(df_merged)
+    
+  }
+  else if (Serie == "Masters 1000") {
+    if (length(player_names) == 128) {
+    sub_vector <- player_names[65:length(player_names)]
+    
+    Winner <- character(32)
+    Loser <- character(32)
+    
+    for (j in 1:32) {
+      player1 <- player_names[(j-1)*2+1]
+      player2 <- player_names[(j-1)*2 + 2]
+      
+      if (player1 %in% sub_vector) {
+        Winner[j] <- player1
+        Loser[j] <- player2
+      } else {
+        Winner[j] <- player2
+        Loser[j] <- player1
+      }
+    }
+    
+    df_1 <- data.frame(Winner, Loser, stringsAsFactors = FALSE)
+    print(df_1)
+    
+    for (i in 1:nrow(df_1)) {
+      
+      P_i[i] <- df_1$Winner[i]
+      P_j[i] <- df_1$Loser[i]
+      Outcome_P_i[i] <- 1
+      Outcome_P_j[i] <- 0
+      
+      indx_i <- tail(which(df$P_i == df_1$Winner[i]| df$P_j == df_1$Winner[i]), 1)
+      if (length(indx_i) == 0) {
+        Elo_i_before_match[i] <- 1500
+      } else {
+        if (df$P_i[indx_i] == df_1$Winner[i]) {
+          Elo_i_before_match[i] <- df$Elo_i_after_match[indx_i]
+        } else {
+          Elo_i_before_match[i] <- df$Elo_j_after_match[indx_i]
+        }
+      }
+      
+      indx_j <- tail(which(df$P_i == df_1$Loser[i] | df$P_j == df_1$Loser[i]), 1)
+      if (length(indx_j) == 0) {
+        Elo_j_before_match[i] <- 1500
+      } else {
+        if (df$P_i[indx_j] == Loser[i]) {
+          Elo_j_before_match[i] <- df$Elo_i_after_match[indx_j]
+        } else {
+          Elo_j_before_match[i] <- df$Elo_j_after_match[indx_j]
+        }
+      }
+      
+      
+      n_partite_i_sx <- sum(
+        df$P_i == df_1$Winner[i] & df$Comment == "Completed"
+      )
+      
+      n_partite_i_dx <- sum(
+        df$P_j == df_1$Winner[i] & df$Comment == "Completed"
+      )
+      
+      n_partite_i <- n_partite_i_sx + n_partite_i_dx + 1 
+      
+      n_partite_j_sx <- sum(
+        df$P_i == df_1$Loser[i] & df$Comment == "Completed"
+      )
+      
+      n_partite_j_dx <- sum(
+        df$P_j == df_1$Loser[i] & df$Comment == "Completed"
+      )
+      
+      n_partite_j <- n_partite_j_sx + n_partite_j_dx + 1 
+      
+      
+      
+      Elo_pi_hat[i] <- tennis_prob(Elo_i_before_match[i], Elo_j_before_match[i])
+      
+      
+      K_Winner <- 250/(n_partite_i + 5)^0.4
+      K_Loser <- 250/(n_partite_j + 5)^0.4
+      
+      #Calcolo ELO after match
+      
+      Elo_i_after_match[i] <- Elo_i_before_match[i] + K_Winner * (1 - Elo_pi_hat[i])
+      Elo_j_after_match[i] <- Elo_j_before_match[i] - K_Loser * (1 - Elo_pi_hat[i])
+    }
+    df_2 <- data.frame(
+      P_i, P_j, Outcome_P_i, Outcome_P_j, Elo_i_before_match, Elo_j_before_match, Elo_pi_hat, Elo_i_after_match, Elo_j_after_match
+    )
+    df_merged <- bind_rows(df, df_2)
+    
+    return(df_merged)
+    }
+    else if (length(players) == 80) {
+      print("è giusto tranquillo")
+      sub_vector <- player_names[49:length(player_names)]
+      
+      Winner <- character(24)
+      Loser <- character(24)
+      
+      for (j in 1:24) {
+        player1 <- player_names[(j-1)*2+1]
+        player2 <- player_names[(j-1)*2 + 2]
+        
+        if (player1 %in% sub_vector) {
+          Winner[j] <- player1
+          Loser[j] <- player2
+        } else {
+          Winner[j] <- player2
+          Loser[j] <- player1
+        }
+      }
+      
+      df_1 <- data.frame(Winner, Loser, stringsAsFactors = FALSE)
+      print(df_1)
+      
+      for (i in 1:nrow(df_1)) {
+        
+        P_i[i] <- df_1$Winner[i]
+        P_j[i] <- df_1$Loser[i]
+        Outcome_P_i[i] <- 1
+        Outcome_P_j[i] <- 0
+        
+        indx_i <- tail(which(df$P_i == df_1$Winner[i]| df$P_j == df_1$Winner[i]), 1)
+        if (length(indx_i) == 0) {
+          Elo_i_before_match[i] <- 1500
+        } else {
+          if (df$P_i[indx_i] == df_1$Winner[i]) {
+            Elo_i_before_match[i] <- df$Elo_i_after_match[indx_i]
+          } else {
+            Elo_i_before_match[i] <- df$Elo_j_after_match[indx_i]
+          }
+        }
+        
+        indx_j <- tail(which(df$P_i == df_1$Loser[i] | df$P_j == df_1$Loser[i]), 1)
+        if (length(indx_j) == 0) {
+          Elo_j_before_match[i] <- 1500
+        } else {
+          if (df$P_i[indx_j] == Loser[i]) {
+            Elo_j_before_match[i] <- df$Elo_i_after_match[indx_j]
+          } else {
+            Elo_j_before_match[i] <- df$Elo_j_after_match[indx_j]
+          }
+        }
+        
+        
+        n_partite_i_sx <- sum(
+          df$P_i == df_1$Winner[i] & df$Comment == "Completed"
+        )
+        
+        n_partite_i_dx <- sum(
+          df$P_j == df_1$Winner[i] & df$Comment == "Completed"
+        )
+        
+        n_partite_i <- n_partite_i_sx + n_partite_i_dx + 1 
+        
+        n_partite_j_sx <- sum(
+          df$P_i == df_1$Loser[i] & df$Comment == "Completed"
+        )
+        
+        n_partite_j_dx <- sum(
+          df$P_j == df_1$Loser[i] & df$Comment == "Completed"
+        )
+        
+        n_partite_j <- n_partite_j_sx + n_partite_j_dx + 1 
+        
+        
+        
+        Elo_pi_hat[i] <- tennis_prob(Elo_i_before_match[i], Elo_j_before_match[i])
+        
+        
+        K_Winner <- 250/(n_partite_i + 5)^0.4
+        K_Loser <- 250/(n_partite_j + 5)^0.4
+        
+        #Calcolo ELO after match
+        
+        Elo_i_after_match[i] <- Elo_i_before_match[i] + K_Winner * (1 - Elo_pi_hat[i])
+        Elo_j_after_match[i] <- Elo_j_before_match[i] - K_Loser * (1 - Elo_pi_hat[i])
+      }
+      df_2 <- data.frame(
+        P_i, P_j, Outcome_P_i, Outcome_P_j, Elo_i_before_match, Elo_j_before_match, Elo_pi_hat, Elo_i_after_match, Elo_j_after_match
+      )
+      df_merged <- bind_rows(df, df_2)
+      
+      return(df_merged)
+    }
+  }
+}
 
 
 
@@ -639,6 +1027,17 @@ players_adj <- function(x){
   x[x == "Carballes R."] <- "Carballes Baena R." 
   x[x == "Jong J."] <- "De Jong J." 
   x[x == "Bautista R."] <- "Bautista Agut R." 
+  x[x == "Džumhur D."] <- "Dzumhur D."
+  x[x == "Tseng C."] <- "Tseng C. H."
+  x[x == "Assche L."] <- "Van Assche L."
+  x[x == "Wolf J."] <- "Wolf J.J."
+  x[x == "Diaz F."] <- "Diaz Acosta F."
+  x[x == "Carreno P."] <- "Carreno Busta P."
+  x[x == "Cerundolo J."] <- "Cerundolo J.M."
+  x[x == "O'Connell C."] <- "O Connell C."
+  x[x == "Barrios T."] <- "Barrios M."
+  x[x == "Alboran N."] <- "Moreno De Alboran N."
+ 
   
   
   #DONNE:
@@ -2703,3 +3102,963 @@ simulate_tournament <- function(X, sim =  10000, WELO = FALSE) {
     return(list(prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
   }
 }
+
+
+simulazione <- function(df, X, sim = 10000) { 
+  
+  #Creazione delle tabelle vuote 
+  table.32 <- matrix(0, nrow = sim, ncol = 32)
+  table.16 <- matrix(0, nrow = sim, ncol = 16)
+  table.8 <- matrix(0, nrow = sim, ncol = 8)
+  table.4 <- matrix(0, nrow = sim, ncol = 4)
+  table.2 <- matrix(0, nrow = sim, ncol = 2)
+  table.1 <- matrix(0, nrow = sim, ncol = 1)
+  
+  #Startiamo i vettori numerici per 32-esimi, 16-esimi, ottavi, quarti, semifinale, finale
+  
+  p.32<-numeric(32)
+  elo_winner.32 <- numeric(32)
+  n_winner.32 <- numeric(32)
+  winner.32 <- numeric(32)
+  
+  p.16<-numeric(16)
+  elo_winner.16<- numeric(16)
+  n_winner.16 <- numeric(16)
+  winner.16 <- numeric(16)
+  
+  
+  p.8<-numeric(8)
+  elo_winner.8<- numeric(8)
+  n_winner.8 <- numeric(8)
+  winner.8 <- numeric(8)
+  
+  p.4<-numeric(4)
+  elo_winner.4<- numeric(4)
+  n_winner.4 <- numeric(4)
+  winner.4 <- numeric(4)
+  
+  p.2<-numeric(2)
+  elo_winner.2<- numeric(2)
+  n_winner.2 <- numeric(2)
+  winner.2 <- numeric(2)
+  
+  p.1<-numeric(1)
+  elo_winner.1<- numeric(1)
+  
+  n_winner.1 <- numeric(1)
+  winner.1 <- numeric(1)
+  
+  #Creazione barra
+  pb <- progress_bar$new(total = sim, format = "[:bar] :percent Time remaining: :eta")
+  
+  #Startiamo vettori utili per conservare i tabelloni dei preliminari + byes
+  player.i.vec <- c()
+  player.j.vec <- c()
+  Elo_i.vec <- c()
+  Elo_j.vec <- c()
+  n_partite_i.vec <- c()
+  n_partite_j.vec <- c()
+  Elo_pi_hat.vec <- c()
+  
+  player_b.vec <- c()
+  Elo_b.vec <- c()
+  n_partite_b.vec <- c()
+  
+  #Se la lunghezza del vettore è 28, il torneo è un ATP250 con 28 draws e 4 byes, nel tabellone di eurosport questi si collocano in maniera precisa 
+  
+  if (length(X) == 28) {
+    
+    print("This is an ATP250, WTA250")
+    
+    table.12 <- matrix(0, nrow = sim, ncol = 12)
+    p.12 <- numeric(12)
+    elo_winner.12<- numeric(12)
+    n_winner.12 <- numeric(12)
+    winner.12 <- numeric(12)
+
+    # Indici da escludere
+    rows_to_exclude <- c(1, 8, 21, 28)
+    
+    # Creiamo un nuovo dataframe senza quelle righe e uno solo con quelle righe
+    
+    X_new <- X[-rows_to_exclude]
+    byes <- X[rows_to_exclude]
+
+    for (i in 1:(length(X_new)/2)) {
+      player.i <- X_new[(i-1)*2+1]
+      player.j <- X_new[(i-1)*2+2]
+      
+      # Trovo Elo player.i
+      indx_i <- tail(which(df$P_i == player.i | df$P_j == player.i), 1)
+      if (length(indx_i) == 0) {
+        Elo_i <- 1500
+      } else {
+        if (df$P_i[indx_i] == player.i) {
+          Elo_i <- df$Elo_i_after_match[indx_i]
+        } else {
+          Elo_i <- df$Elo_j_after_match[indx_i]
+        }
+      }
+      
+      # Trovo Elo player.j
+      indx_j <- tail(which(df$P_i == player.j | df$P_j == player.j), 1)
+      if (length(indx_j) == 0) {
+        Elo_j <- 1500
+      } else {
+        if (df$P_i[indx_j] == player.j) {
+          Elo_j <- df$Elo_i_after_match[indx_j]
+        } else {
+          Elo_j <- df$Elo_j_after_match[indx_j]
+        }
+      }
+      
+      # Numero partite giocate
+      n_partite_i <- sum((df$P_i == player.i | df$P_j == player.i) & df$Comment == "Completed")
+      n_partite_j <- sum((df$P_i == player.j | df$P_j == player.j) & df$Comment == "Completed")
+      
+      # Calcolo probabilità
+      Elo_pi_hat <- tennis_prob(Elo_i, Elo_j)
+      
+      # Salvo i risultati
+      player.i.vec <- c(player.i.vec, player.i)
+      player.j.vec <- c(player.j.vec, player.j)
+      Elo_i.vec <- c(Elo_i.vec, Elo_i)
+      Elo_j.vec <- c(Elo_j.vec, Elo_j)
+      n_partite_i.vec <- c(n_partite_i.vec, n_partite_i)
+      n_partite_j.vec <- c(n_partite_j.vec, n_partite_j)
+      Elo_pi_hat.vec <- c(Elo_pi_hat.vec, Elo_pi_hat)
+    }
+    
+    # Creo il dataframe
+    df_1 <- data.frame(
+      player.i = player.i.vec,
+      player.j = player.j.vec,
+      Elo_i = Elo_i.vec,
+      Elo_j = Elo_j.vec,
+      n_partite_i = n_partite_i.vec,
+      n_partite_j = n_partite_j.vec,
+      Elo_pi_hat = Elo_pi_hat.vec,
+      stringsAsFactors = FALSE
+    )
+    
+    print(df_1)
+    ########
+    
+    #Creiamo un dataset per i byes 
+    
+    for (i in 1:length(byes)) {
+      
+      player.i_b <- byes[i]
+      
+      # Prendo Elo
+      indx_i_b <- tail(which(df$P_i == player.i_b | df$P_j == player.i_b), 1)
+      
+      if (length(indx_i_b) == 0) {
+        Elo_i_b <- 1500
+      } else {
+        if (df$P_i[indx_i_b] == player.i_b) {
+          Elo_i_b <- df$Elo_i_after_match[indx_i_b]
+        } else {
+          Elo_i_b <- df$Elo_j_after_match[indx_i_b]
+        }
+      }
+      
+      # Numero partite giocate
+      n_partite_i_b <- sum(
+        (df$P_i == player.i_b | df$P_j == player.i_b)
+      )
+      
+      # Salvo i risultati nei vettori
+      player_b.vec <- c(player_b.vec, player.i_b)
+      Elo_b.vec <- c(Elo_b.vec, Elo_i_b)
+      n_partite_b.vec <- c(n_partite_b.vec, n_partite_i_b)
+    }
+    
+    # Creo il dataframe
+    df.2 <- data.frame(
+      player = player_b.vec,
+      Elo = Elo_b.vec,
+      Matches = n_partite_b.vec,
+      stringsAsFactors = FALSE
+    )
+    
+    print(df.2)
+    
+      
+    for (t in 1:sim) {
+        
+    pb$tick() # Aggiorna la barra di avanzamento
+        
+        
+    p.12 <- df_1$Elo_pi_hat
+    
+    match_result.12 <- rbern(12, p.12)
+    
+    elo_winner.12<-ifelse(match_result.12 == 1, df_1[,3], df_1[,4])
+    
+    n_winner.12 <- ifelse(match_result.12 == 1, df_1[,5] + 1, df_1[,6] + 1)
+    
+    elo_winner.12 <- elo_winner.12 + ((250/((n_winner.12 + 5)^0.4)) * (ifelse(match_result.12 == 1, 1 - p.12, p.12)))
+    winner.12 <- ifelse(match_result.12 == 1, df_1[, 1], df_1[, 2])
+    table.12[t, ] <- winner.12
+    
+    # dataframe vincitori
+    df_winner <- data.frame(player = winner.12,
+                            Elo = elo_winner.12,
+                            Matches = n_winner.12,
+                            stringsAsFactors = FALSE)
+    # li unisci
+    df_all <- rbind(df_winner, df.2)
+    
+    # mischi le righe
+    df_all_random <- df_all[sample(nrow(df_all)), ]
+    
+    winner <- df_all_random$player
+    elo_winner <- df_all_random$Elo
+    n_winner <- df_all_random$Matches
+    
+    p.8 <- sapply(1:8, function (m) tennis_prob(elo_winner[m*2-1], elo_winner[m*2]))
+    match_result.8 <- rbern (8, p.8)
+    
+    elo_winner.8 <- ifelse(match_result.8 == 1, elo_winner[seq(1, 16, by = 2)], elo_winner[seq(2, 16, by = 2)])
+    
+    n_winner.8 <- ifelse(match_result.8 == 1, n_winner[seq(1, 16, by = 2)] + 1, n_winner[seq(2, 16, by = 2)] + 1)
+    
+    elo_winner.8 <- elo_winner.8 + ((250/((n_winner.8 + 5)^0.4)) * (ifelse(match_result.8 == 1, 1 - p.8, p.8)))
+    winner.8 <- ifelse(match_result.8 == 1, winner[seq(1, 16, by = 2)], winner[seq(2, 16, by = 2)])
+    table.8[t, ] <- winner.8
+    
+    p.4 <- sapply(1:4, function (c) tennis_prob(elo_winner.8[c*2-1], elo_winner.8[c*2]))
+    match_result.4 <- rbern (4, p.4)
+    elo_winner.4 <- ifelse(match_result.4 == 1, elo_winner.8[seq(1, 8, by = 2)], elo_winner.8[seq(2, 8, by = 2)])
+    n_winner.4 <- ifelse(match_result.4 == 1, n_winner.8[seq(1, 8, by = 2)] + 1, n_winner.8[seq(2, 8, by = 2)] + 1)
+    elo_winner.4 <- elo_winner.4 + ((250/((n_winner.4 + 5)^0.4)) * (ifelse(match_result.4 == 1, 1 - p.4, p.4)))
+    winner.4 <- ifelse(match_result.4 == 1, winner.8[seq(1, 8, by = 2)], winner.8[seq(2, 8, by = 2)])
+    table.4[t, ] <- winner.4
+    
+    p.2 <- sapply(1:2, function (b) tennis_prob(elo_winner.4[b*2-1], elo_winner.4[b*2]))
+    match_result.2 <- rbern (2, p.2)
+    elo_winner.2 <- ifelse(match_result.2 == 1, elo_winner.4[seq(1, 4, by = 2)], elo_winner.4[seq(2, 4, by = 2)])
+    n_winner.2 <- ifelse(match_result.2 == 1, n_winner.4[seq(1, 4, by = 2)] + 1, n_winner.4[seq(2, 4, by = 2)] + 1)
+    elo_winner.2 <- elo_winner.2 + ((250/((n_winner.2 + 5)^0.2)) * (ifelse(match_result.2 == 1, 1 - p.2, p.2)))
+    winner.2 <- ifelse(match_result.2 == 1, winner.4[seq(1, 4, by = 2)], winner.4[seq(2, 4, by = 2)])
+    table.2[t, ] <- winner.2
+    
+    p.1 <- tennis_prob(elo_winner.2[1], elo_winner.2[2])
+    match_result.1 <- rbern(1, p.1)
+    elo_winner.1 <- if (match_result.1 == 1) elo_winner.2[1] else  elo_winner.2[2] 
+    n_winner.1 <- if (match_result.1 == 1)  n_winner.2[1] + 1 else n_winner.2[2] + 1
+    elo_winner.1 <- elo_winner.1 + ((250/((n_winner.1+5)^0.4)) * (ifelse(match_result.1 == 1, 1 - p.1, p.1))) 
+    winner.1 <- if (match_result.1 == 1) winner.2[1] else winner.2[2]
+    table.1[t, 1] <- winner.1
+    }
+  
+
+    
+    prob.8 <- table(table.8) / sim
+    prob.4 <- table(table.4) / sim
+    prob.2 <- table(table.2) / sim
+    prob.1 <- table(table.1) / sim
+    
+    prob.8 <- sort(prob.8, decreasing = TRUE)
+    prob.4 <- sort(prob.4, decreasing = TRUE)
+    prob.2 <- sort(prob.2, decreasing = TRUE)
+    prob.1 <- sort(prob.1, decreasing = TRUE)
+    
+    odd.1 <- 1 / prob.1
+    odd.1 <- sort(odd.1, increasing = TRUE)
+  
+    return(list(prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
+  }
+  else if (length(X) == 48) {
+    
+    table.16_p <- matrix(0, nrow = sim, ncol = 16)
+    p.16_p <- numeric(16)
+    elo_winner.16_p <- numeric(16)
+    n_winner.16_p <- numeric(16)
+    winner.16_p <- numeric(16)
+    
+    # Indici da escludere
+    rows_to_exclude <- c(1, 6, 7, 12, 13, 18, 19, 24, 25, 30, 31, 36, 37, 42, 43, 48)
+    
+    # Creiamo un nuovo dataframe senza quelle righe e uno solo con quelle righe
+    
+    X_new <- X[-rows_to_exclude]
+    byes <- X[rows_to_exclude]
+    
+    for (i in 1:(length(X_new)/2)) {
+      player.i <- X_new[(i-1)*2+1]
+      player.j <- X_new[(i-1)*2+2]
+      
+      # Trovo Elo player.i
+      indx_i <- tail(which(df$P_i == player.i | df$P_j == player.i), 1)
+      if (length(indx_i) == 0) {
+        Elo_i <- 1500
+      } else {
+        if (df$P_i[indx_i] == player.i) {
+          Elo_i <- df$Elo_i_after_match[indx_i]
+        } else {
+          Elo_i <- df$Elo_j_after_match[indx_i]
+        }
+      }
+      
+      # Trovo Elo player.j
+      indx_j <- tail(which(df$P_i == player.j | df$P_j == player.j), 1)
+      if (length(indx_j) == 0) {
+        Elo_j <- 1500
+      } else {
+        if (df$P_i[indx_j] == player.j) {
+          Elo_j <- df$Elo_i_after_match[indx_j]
+        } else {
+          Elo_j <- df$Elo_j_after_match[indx_j]
+        }
+      }
+      
+      # Numero partite giocate
+      n_partite_i <- sum((df$P_i == player.i | df$P_j == player.i) & df$Comment == "Completed")
+      n_partite_j <- sum((df$P_i == player.j | df$P_j == player.j) & df$Comment == "Completed")
+      
+      # Calcolo probabilità
+      Elo_pi_hat <- tennis_prob(Elo_i, Elo_j)
+      
+      # Salvo i risultati
+      player.i.vec <- c(player.i.vec, player.i)
+      player.j.vec <- c(player.j.vec, player.j)
+      Elo_i.vec <- c(Elo_i.vec, Elo_i)
+      Elo_j.vec <- c(Elo_j.vec, Elo_j)
+      n_partite_i.vec <- c(n_partite_i.vec, n_partite_i)
+      n_partite_j.vec <- c(n_partite_j.vec, n_partite_j)
+      Elo_pi_hat.vec <- c(Elo_pi_hat.vec, Elo_pi_hat)
+    }
+    
+    # Creo il dataframe
+    df_1 <- data.frame(
+      player.i = player.i.vec,
+      player.j = player.j.vec,
+      Elo_i = Elo_i.vec,
+      Elo_j = Elo_j.vec,
+      n_partite_i = n_partite_i.vec,
+      n_partite_j = n_partite_j.vec,
+      Elo_pi_hat = Elo_pi_hat.vec,
+      stringsAsFactors = FALSE
+    )
+    
+    print(df_1)
+    ########
+    
+    #Creiamo un dataset per i byes 
+    
+    for (i in 1:length(byes)) {
+      
+      player.i_b <- byes[i]
+      
+      # Prendo Elo
+      indx_i_b <- tail(which(df$P_i == player.i_b | df$P_j == player.i_b), 1)
+      
+      if (length(indx_i_b) == 0) {
+        Elo_i_b <- 1500
+      } else {
+        if (df$P_i[indx_i_b] == player.i_b) {
+          Elo_i_b <- df$Elo_i_after_match[indx_i_b]
+        } else {
+          Elo_i_b <- df$Elo_j_after_match[indx_i_b]
+        }
+      }
+      
+      # Numero partite giocate
+      n_partite_i_b <- sum(
+        (df$P_i == player.i_b | df$P_j == player.i_b)
+      )
+      
+      # Salvo i risultati nei vettori
+      player_b.vec <- c(player_b.vec, player.i_b)
+      Elo_b.vec <- c(Elo_b.vec, Elo_i_b)
+      n_partite_b.vec <- c(n_partite_b.vec, n_partite_i_b)
+    }
+    
+    # Creo il dataframe
+    df.2 <- data.frame(
+      player = player_b.vec,
+      Elo = Elo_b.vec,
+      Matches = n_partite_b.vec,
+      stringsAsFactors = FALSE
+    )
+    
+    print(df.2)
+    
+    
+    for (t in 1:sim) {
+      
+      pb$tick() # Aggiorna la barra di avanzamento
+      
+      
+      p.16_p <- df_1$Elo_pi_hat
+      
+      match_result.16_p <- rbern(16, p.16_p)
+      
+      elo_winner.16_p<-ifelse(match_result.16_p == 1, df_1[,3], df_1[,4])
+      
+      n_winner.16_p <- ifelse(match_result.16_p == 1, df_1[,5] + 1, df_1[,6] + 1)
+      
+      elo_winner.16_p <- elo_winner.16_p + ((250/((n_winner.16_p + 5)^0.4)) * (ifelse(match_result.16_p == 1, 1 - p.16_p, p.16_p)))
+      winner.16_p <- ifelse(match_result.16_p == 1, df_1[, 1], df_1[, 2])
+      table.16_p[t, ] <- winner.16_p
+      
+      # dataframe vincitori
+      df_winner <- data.frame(player = winner.16_p,
+                              Elo = elo_winner.16_p,
+                              Matches = n_winner.16_p,
+                              stringsAsFactors = FALSE)
+      # li unisci
+      df_all <- rbind(df_winner, df.2)
+      
+      # mischi le righe
+      df_all_random <- df_all[sample(nrow(df_all)), ]
+      
+      winner <- df_all_random$player
+      elo_winner <- df_all_random$Elo
+      n_winner <- df_all_random$Matches
+      
+      #Inizio con la simulazione successiva
+      
+      p.16 <- sapply(1:16, function (g) tennis_prob(elo_winner[g*2-1], elo_winner[g*2]))
+      
+      match_result.16 <- rbern (16, p.16)
+      
+      elo_winner.16 <- ifelse(match_result.16 == 1, elo_winner[seq(1, 16, by = 2)], elo_winner[seq(2, 16, by = 2)])
+      
+      n_winner.16 <- ifelse(match_result.16 == 1, n_winner[seq(1, 16, by = 2)] + 1, n_winner[seq(2, 16, by = 2)] + 1)
+      
+      elo_winner.16 <- elo_winner.16 + ((250/((n_winner.16 + 5)^0.4)) * (ifelse(match_result.16 == 1, 1 - p.16, p.16)))
+      
+      
+      winner.16 <- ifelse(match_result.16 == 1, winner[seq(1, 16, by = 2)], winner[seq(2, 16, by = 2)])
+      table.16[t, ] <- winner.16
+      
+      p.8 <- sapply(1:8, function (m) tennis_prob(elo_winner.16[m*2-1], elo_winner.16[m*2]))
+      match_result.8 <- rbern (8, p.8)
+      
+      elo_winner.8 <- ifelse(match_result.8 == 1, elo_winner.16[seq(1, 16, by = 2)], elo_winner.16[seq(2, 16, by = 2)])
+      
+      n_winner.8 <- ifelse(match_result.8 == 1, n_winner.16[seq(1, 16, by = 2)] + 1, n_winner.16[seq(2, 16, by = 2)] + 1)
+      
+      elo_winner.8 <- elo_winner.8 + ((250/((n_winner.8 + 5)^0.4)) * (ifelse(match_result.8 == 1, 1 - p.8, p.8)))
+      winner.8 <- ifelse(match_result.8 == 1, winner.16[seq(1, 16, by = 2)], winner.16[seq(2, 16, by = 2)])
+      table.8[t, ] <- winner.8
+      
+      p.4 <- sapply(1:4, function (c) tennis_prob(elo_winner.8[c*2-1], elo_winner.8[c*2]))
+      match_result.4 <- rbern (4, p.4)
+      elo_winner.4 <- ifelse(match_result.4 == 1, elo_winner.8[seq(1, 8, by = 2)], elo_winner.8[seq(2, 8, by = 2)])
+      n_winner.4 <- ifelse(match_result.4 == 1, n_winner.8[seq(1, 8, by = 2)] + 1, n_winner.8[seq(2, 8, by = 2)] + 1)
+      elo_winner.4 <- elo_winner.4 + ((250/((n_winner.4 + 5)^0.4)) * (ifelse(match_result.4 == 1, 1 - p.4, p.4)))
+      winner.4 <- ifelse(match_result.4 == 1, winner.8[seq(1, 8, by = 2)], winner.8[seq(2, 8, by = 2)])
+      table.4[t, ] <- winner.4
+      
+      p.2 <- sapply(1:2, function (b) tennis_prob(elo_winner.4[b*2-1], elo_winner.4[b*2]))
+      match_result.2 <- rbern (2, p.2)
+      elo_winner.2 <- ifelse(match_result.2 == 1, elo_winner.4[seq(1, 4, by = 2)], elo_winner.4[seq(2, 4, by = 2)])
+      n_winner.2 <- ifelse(match_result.2 == 1, n_winner.4[seq(1, 4, by = 2)] + 1, n_winner.4[seq(2, 4, by = 2)] + 1)
+      elo_winner.2 <- elo_winner.2 + ((250/((n_winner.2 + 5)^0.2)) * (ifelse(match_result.2 == 1, 1 - p.2, p.2)))
+      winner.2 <- ifelse(match_result.2 == 1, winner.4[seq(1, 4, by = 2)], winner.4[seq(2, 4, by = 2)])
+      table.2[t, ] <- winner.2
+      
+      p.1 <- tennis_prob(elo_winner.2[1], elo_winner.2[2])
+      match_result.1 <- rbern(1, p.1)
+      elo_winner.1 <- if (match_result.1 == 1) elo_winner.2[1] else  elo_winner.2[2] 
+      n_winner.1 <- if (match_result.1 == 1)  n_winner.2[1] + 1 else n_winner.2[2] + 1
+      elo_winner.1 <- elo_winner.1 + ((250/((n_winner.1+5)^0.4)) * (ifelse(match_result.1 == 1, 1 - p.1, p.1))) 
+      winner.1 <- if (match_result.1 == 1) winner.2[1] else winner.2[2]
+      table.1[t, 1] <- winner.1
+    }
+    
+    
+    prob.16 <- table(table.16) / sim
+    prob.8 <- table(table.8) / sim
+    prob.4 <- table(table.4) / sim
+    prob.2 <- table(table.2) / sim
+    prob.1 <- table(table.1) / sim
+    
+    prob.16 <- sort(prob.16, decreasing = TRUE)
+    prob.8 <- sort(prob.8, decreasing = TRUE)
+    prob.4 <- sort(prob.4, decreasing = TRUE)
+    prob.2 <- sort(prob.2, decreasing = TRUE)
+    prob.1 <- sort(prob.1, decreasing = TRUE)
+    
+    odd.1 <- 1 / prob.1
+    odd.1 <- sort(odd.1, increasing = TRUE)
+    
+    return(list(prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
+    
+  }
+  else if (length(X) == 96) {
+    
+    table.32_p <- matrix(0, nrow = sim, ncol = 32)
+    p.32_p <- numeric(32)
+    elo_winner.32_p <- numeric(32)
+    n_winner.32_p <- numeric(32)
+    winner.32_p <- numeric(32)
+    
+    # Indici da escludere
+    rows_to_exclude <- c(1, 6, 7, 12, 13, 18, 19, 24, 25, 30, 31, 36, 37, 42, 43, 48, 49, 54, 55, 60, 61, 66, 67, 72, 73, 78, 79, 84, 85, 90, 91, 96)
+    
+    # Creiamo un nuovo dataframe senza quelle righe e uno solo con quelle righe
+    
+    X_new <- X[-rows_to_exclude]
+    byes <- X[rows_to_exclude]
+    
+    for (i in 1:(length(X_new)/2)) {
+      player.i <- X_new[(i-1)*2+1]
+      player.j <- X_new[(i-1)*2+2]
+      
+      # Trovo Elo player.i
+      indx_i <- tail(which(df$P_i == player.i | df$P_j == player.i), 1)
+      if (length(indx_i) == 0) {
+        Elo_i <- 1500
+      } else {
+        if (df$P_i[indx_i] == player.i) {
+          Elo_i <- df$Elo_i_after_match[indx_i]
+        } else {
+          Elo_i <- df$Elo_j_after_match[indx_i]
+        }
+      }
+      
+      # Trovo Elo player.j
+      indx_j <- tail(which(df$P_i == player.j | df$P_j == player.j), 1)
+      if (length(indx_j) == 0) {
+        Elo_j <- 1500
+      } else {
+        if (df$P_i[indx_j] == player.j) {
+          Elo_j <- df$Elo_i_after_match[indx_j]
+        } else {
+          Elo_j <- df$Elo_j_after_match[indx_j]
+        }
+      }
+      
+      # Numero partite giocate
+      n_partite_i <- sum((df$P_i == player.i | df$P_j == player.i) & df$Comment == "Completed")
+      n_partite_j <- sum((df$P_i == player.j | df$P_j == player.j) & df$Comment == "Completed")
+      
+      # Calcolo probabilità
+      Elo_pi_hat <- tennis_prob(Elo_i, Elo_j)
+      
+      # Salvo i risultati
+      player.i.vec <- c(player.i.vec, player.i)
+      player.j.vec <- c(player.j.vec, player.j)
+      Elo_i.vec <- c(Elo_i.vec, Elo_i)
+      Elo_j.vec <- c(Elo_j.vec, Elo_j)
+      n_partite_i.vec <- c(n_partite_i.vec, n_partite_i)
+      n_partite_j.vec <- c(n_partite_j.vec, n_partite_j)
+      Elo_pi_hat.vec <- c(Elo_pi_hat.vec, Elo_pi_hat)
+    }
+    
+    # Creo il dataframe
+    df_1 <- data.frame(
+      player.i = player.i.vec,
+      player.j = player.j.vec,
+      Elo_i = Elo_i.vec,
+      Elo_j = Elo_j.vec,
+      n_partite_i = n_partite_i.vec,
+      n_partite_j = n_partite_j.vec,
+      Elo_pi_hat = Elo_pi_hat.vec,
+      stringsAsFactors = FALSE
+    )
+    
+    print(df_1)
+    ########
+    
+    #Creiamo un dataset per i byes 
+    
+    for (i in 1:length(byes)) {
+      
+      player.i_b <- byes[i]
+      
+      # Prendo Elo
+      indx_i_b <- tail(which(df$P_i == player.i_b | df$P_j == player.i_b), 1)
+      
+      if (length(indx_i_b) == 0) {
+        Elo_i_b <- 1500
+      } else {
+        if (df$P_i[indx_i_b] == player.i_b) {
+          Elo_i_b <- df$Elo_i_after_match[indx_i_b]
+        } else {
+          Elo_i_b <- df$Elo_j_after_match[indx_i_b]
+        }
+      }
+      
+      # Numero partite giocate
+      n_partite_i_b <- sum(
+        (df$P_i == player.i_b | df$P_j == player.i_b)
+      )
+      
+      # Salvo i risultati nei vettori
+      player_b.vec <- c(player_b.vec, player.i_b)
+      Elo_b.vec <- c(Elo_b.vec, Elo_i_b)
+      n_partite_b.vec <- c(n_partite_b.vec, n_partite_i_b)
+    }
+    
+    # Creo il dataframe
+    df.2 <- data.frame(
+      player = player_b.vec,
+      Elo = Elo_b.vec,
+      Matches = n_partite_b.vec,
+      stringsAsFactors = FALSE
+    )
+    
+    print(df.2)
+    
+    
+    for (t in 1:sim) {
+      
+      pb$tick() # Aggiorna la barra di avanzamento
+      
+      
+      p.32_p <- df_1$Elo_pi_hat
+      
+      match_result.32_p <- rbern(32, p.32_p)
+      
+      elo_winner.32_p<-ifelse(match_result.32_p == 1, df_1[,3], df_1[,4])
+      
+      n_winner.32_p <- ifelse(match_result.32_p == 1, df_1[,5] + 1, df_1[,6] + 1)
+      
+      elo_winner.32_p <- elo_winner.32_p + ((250/((n_winner.32_p + 5)^0.4)) * (ifelse(match_result.32_p == 1, 1 - p.32_p, p.32_p)))
+      winner.32_p <- ifelse(match_result.32_p == 1, df_1[, 1], df_1[, 2])
+      table.32_p[t, ] <- winner.32_p
+      
+      # dataframe vincitori
+      df_winner <- data.frame(player = winner.32_p,
+                              Elo = elo_winner.32_p,
+                              Matches = n_winner.32_p,
+                              stringsAsFactors = FALSE)
+      # li unisci
+      df_all <- rbind(df_winner, df.2)
+      
+      # mischi le righe
+      df_all_random <- df_all[sample(nrow(df_all)), ]
+      
+      winner <- df_all_random$player
+      elo_winner <- df_all_random$Elo
+      n_winner <- df_all_random$Matches
+      
+      #Inizio con la simulazione successiva
+      
+      p.32 <- sapply(1:32, function (f) tennis_prob(elo_winner[f*2-1], elo_winner[f*2]))
+      
+      match_result.32 <- rbern(32, p.32)
+      
+      elo_winner.32 <- ifelse(match_result.32 == 1, elo_winner[seq(1, 64, by = 2)], elo_winner[seq(2, 64, by = 2)])
+      
+      n_winner.32 <- ifelse(match_result.32 == 1, n_winner[seq(1, 64, by = 2)] + 1, n_winner[seq(2, 64, by = 2)] + 1)
+      
+      elo_winner.32 <- elo_winner.32 + ((250/((n_winner.32 + 5)^0.4)) * (ifelse(match_result.32 == 1, 1 - p.32, p.32)))
+      
+      winner.32 <- ifelse(match_result.32 == 1, winner[seq(1, 64, by = 2)], winner[seq(2, 64, by = 2)])
+      table.32[t, ] <- winner.32
+      
+      
+      p.16 <- sapply(1:16, function (g) tennis_prob(elo_winner.32[g*2-1], elo_winner.32[g*2]))
+      
+      match_result.16 <- rbern (16, p.16)
+      
+      elo_winner.16 <- ifelse(match_result.16 == 1, elo_winner.32[seq(1, 32, by = 2)], elo_winner.32[seq(2, 32, by = 2)])
+      
+      n_winner.16 <- ifelse(match_result.16 == 1, n_winner.32[seq(1, 32, by = 2)] + 1, n_winner.32[seq(2, 32, by = 2)] + 1) #tipo qua se vuoi fare qualcosa di utile dovresti mettere +2 perche si ipotizza che il 32 sia gia stato giocato?
+      
+      elo_winner.16 <- elo_winner.16 + ((250/((n_winner.16 + 5)^0.4)) * (ifelse(match_result.16 == 1, 1 - p.16, p.16)))
+      
+      winner.16 <- ifelse(match_result.16 == 1, winner.32[seq(1, 32, by = 2)], winner.32[seq(2, 32, by = 2)])
+      table.16[t, ] <- winner.16
+      
+      
+      p.8 <- sapply(1:8, function (m) tennis_prob(elo_winner.16[m*2-1], elo_winner.16[m*2]))
+      match_result.8 <- rbern (8, p.8)
+      
+      elo_winner.8 <- ifelse(match_result.8 == 1, elo_winner.16[seq(1, 16, by = 2)], elo_winner.16[seq(2, 16, by = 2)])
+      
+      n_winner.8 <- ifelse(match_result.8 == 1, n_winner.16[seq(1, 16, by = 2)] + 1, n_winner.16[seq(2, 16, by = 2)] + 1)
+      
+      elo_winner.8 <- elo_winner.8 + ((250/((n_winner.8 + 5)^0.4)) * (ifelse(match_result.8 == 1, 1 - p.8, p.8)))
+      winner.8 <- ifelse(match_result.8 == 1, winner.16[seq(1, 16, by = 2)], winner.16[seq(2, 16, by = 2)])
+      table.8[t, ] <- winner.8
+      
+      p.4 <- sapply(1:4, function (c) tennis_prob(elo_winner.8[c*2-1], elo_winner.8[c*2]))
+      match_result.4 <- rbern (4, p.4)
+      elo_winner.4 <- ifelse(match_result.4 == 1, elo_winner.8[seq(1, 8, by = 2)], elo_winner.8[seq(2, 8, by = 2)])
+      n_winner.4 <- ifelse(match_result.4 == 1, n_winner.8[seq(1, 8, by = 2)] + 1, n_winner.8[seq(2, 8, by = 2)] + 1)
+      elo_winner.4 <- elo_winner.4 + ((250/((n_winner.4 + 5)^0.4)) * (ifelse(match_result.4 == 1, 1 - p.4, p.4)))
+      winner.4 <- ifelse(match_result.4 == 1, winner.8[seq(1, 8, by = 2)], winner.8[seq(2, 8, by = 2)])
+      table.4[t, ] <- winner.4
+      
+      p.2 <- sapply(1:2, function (b) tennis_prob(elo_winner.4[b*2-1], elo_winner.4[b*2]))
+      match_result.2 <- rbern (2, p.2)
+      elo_winner.2 <- ifelse(match_result.2 == 1, elo_winner.4[seq(1, 4, by = 2)], elo_winner.4[seq(2, 4, by = 2)])
+      n_winner.2 <- ifelse(match_result.2 == 1, n_winner.4[seq(1, 4, by = 2)] + 1, n_winner.4[seq(2, 4, by = 2)] + 1)
+      elo_winner.2 <- elo_winner.2 + ((250/((n_winner.2 + 5)^0.2)) * (ifelse(match_result.2 == 1, 1 - p.2, p.2)))
+      winner.2 <- ifelse(match_result.2 == 1, winner.4[seq(1, 4, by = 2)], winner.4[seq(2, 4, by = 2)])
+      table.2[t, ] <- winner.2
+      
+      p.1 <- tennis_prob(elo_winner.2[1], elo_winner.2[2])
+      match_result.1 <- rbern(1, p.1)
+      elo_winner.1 <- if (match_result.1 == 1) elo_winner.2[1] else  elo_winner.2[2] 
+      n_winner.1 <- if (match_result.1 == 1)  n_winner.2[1] + 1 else n_winner.2[2] + 1
+      elo_winner.1 <- elo_winner.1 + ((250/((n_winner.1+5)^0.4)) * (ifelse(match_result.1 == 1, 1 - p.1, p.1))) 
+      winner.1 <- if (match_result.1 == 1) winner.2[1] else winner.2[2]
+      table.1[t, 1] <- winner.1
+    }
+    
+    prob.32 <- table(table.32) / sim
+    prob.16 <- table(table.16) / sim
+    prob.8 <- table(table.8) / sim
+    prob.4 <- table(table.4) / sim
+    prob.2 <- table(table.2) / sim
+    prob.1 <- table(table.1) / sim
+    
+    prob.32 <- sort(prob.32, decreasing = TRUE)
+    prob.16 <- sort(prob.16, decreasing = TRUE)
+    prob.8 <- sort(prob.8, decreasing = TRUE)
+    prob.4 <- sort(prob.4, decreasing = TRUE)
+    prob.2 <- sort(prob.2, decreasing = TRUE)
+    prob.1 <- sort(prob.1, decreasing = TRUE)
+    
+    odd.1 <- 1 / prob.1
+    odd.1 <- sort(odd.1, increasing = TRUE)
+    
+    return(list(prob.32 = prob.32, prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
+    
+  }
+  else if (length(X) == 56) { 
+    table.24 <- matrix(0, nrow = sim, ncol = 24)
+    p.24 <- numeric(24)
+    elo_winner.24 <- numeric(24)
+    n_winner.24 <- numeric(24)
+    winner.24 <- numeric(24)
+    
+    # Indici da escludere
+    rows_to_exclude <- c(1, 14, 15, 28, 29, 42, 43, 56)
+    
+    # Creiamo un nuovo dataframe senza quelle righe e uno solo con quelle righe
+    
+    X_new <- X[-rows_to_exclude]
+    byes <- X[rows_to_exclude]
+    
+    for (i in 1:(length(X_new)/2)) {
+      player.i <- X_new[(i-1)*2+1]
+      player.j <- X_new[(i-1)*2+2]
+      
+      # Trovo Elo player.i
+      indx_i <- tail(which(df$P_i == player.i | df$P_j == player.i), 1)
+      if (length(indx_i) == 0) {
+        Elo_i <- 1500
+      } else {
+        if (df$P_i[indx_i] == player.i) {
+          Elo_i <- df$Elo_i_after_match[indx_i]
+        } else {
+          Elo_i <- df$Elo_j_after_match[indx_i]
+        }
+      }
+      
+      # Trovo Elo player.j
+      indx_j <- tail(which(df$P_i == player.j | df$P_j == player.j), 1)
+      if (length(indx_j) == 0) {
+        Elo_j <- 1500
+      } else {
+        if (df$P_i[indx_j] == player.j) {
+          Elo_j <- df$Elo_i_after_match[indx_j]
+        } else {
+          Elo_j <- df$Elo_j_after_match[indx_j]
+        }
+      }
+      
+      # Numero partite giocate
+      n_partite_i <- sum((df$P_i == player.i | df$P_j == player.i) & df$Comment == "Completed")
+      n_partite_j <- sum((df$P_i == player.j | df$P_j == player.j) & df$Comment == "Completed")
+      
+      # Calcolo probabilità
+      Elo_pi_hat <- tennis_prob(Elo_i, Elo_j)
+      
+      # Salvo i risultati
+      player.i.vec <- c(player.i.vec, player.i)
+      player.j.vec <- c(player.j.vec, player.j)
+      Elo_i.vec <- c(Elo_i.vec, Elo_i)
+      Elo_j.vec <- c(Elo_j.vec, Elo_j)
+      n_partite_i.vec <- c(n_partite_i.vec, n_partite_i)
+      n_partite_j.vec <- c(n_partite_j.vec, n_partite_j)
+      Elo_pi_hat.vec <- c(Elo_pi_hat.vec, Elo_pi_hat)
+    }
+    
+    # Creo il dataframe
+    df_1 <- data.frame(
+      player.i = player.i.vec,
+      player.j = player.j.vec,
+      Elo_i = Elo_i.vec,
+      Elo_j = Elo_j.vec,
+      n_partite_i = n_partite_i.vec,
+      n_partite_j = n_partite_j.vec,
+      Elo_pi_hat = Elo_pi_hat.vec,
+      stringsAsFactors = FALSE
+    )
+    
+    print(df_1)
+    ########
+    
+    #Creiamo un dataset per i byes 
+    
+    for (i in 1:length(byes)) {
+      
+      player.i_b <- byes[i]
+      
+      # Prendo Elo
+      indx_i_b <- tail(which(df$P_i == player.i_b | df$P_j == player.i_b), 1)
+      
+      if (length(indx_i_b) == 0) {
+        Elo_i_b <- 1500
+      } else {
+        if (df$P_i[indx_i_b] == player.i_b) {
+          Elo_i_b <- df$Elo_i_after_match[indx_i_b]
+        } else {
+          Elo_i_b <- df$Elo_j_after_match[indx_i_b]
+        }
+      }
+      
+      # Numero partite giocate
+      n_partite_i_b <- sum(
+        (df$P_i == player.i_b | df$P_j == player.i_b)
+      )
+      
+      # Salvo i risultati nei vettori
+      player_b.vec <- c(player_b.vec, player.i_b)
+      Elo_b.vec <- c(Elo_b.vec, Elo_i_b)
+      n_partite_b.vec <- c(n_partite_b.vec, n_partite_i_b)
+    }
+    
+    # Creo il dataframe
+    df.2 <- data.frame(
+      player = player_b.vec,
+      Elo = Elo_b.vec,
+      Matches = n_partite_b.vec,
+      stringsAsFactors = FALSE
+    )
+    
+    print(df.2)
+    
+    
+    for (t in 1:sim) {
+      
+      pb$tick() # Aggiorna la barra di avanzamento
+      
+      
+      p.24 <- df_1$Elo_pi_hat
+      
+      match_result.24 <- rbern(24, p.24)
+      
+      elo_winner.24<-ifelse(match_result.24 == 1, df_1[,3], df_1[,4])
+      
+      n_winner.24 <- ifelse(match_result.24 == 1, df_1[,5] + 1, df_1[,6] + 1)
+      
+      elo_winner.24 <- elo_winner.24 + ((250/((n_winner.24 + 5)^0.4)) * (ifelse(match_result.24 == 1, 1 - p.24, p.24)))
+      winner.24 <- ifelse(match_result.24 == 1, df_1[, 1], df_1[, 2])
+      table.24[t, ] <- winner.24
+      
+      # dataframe vincitori
+      df_winner <- data.frame(player = winner.24,
+                              Elo = elo_winner.24,
+                              Matches = n_winner.24,
+                              stringsAsFactors = FALSE)
+      # li unisci
+      df_all <- rbind(df_winner, df.2)
+      
+      # mischi le righe
+      df_all_random <- df_all[sample(nrow(df_all)), ]
+      
+      winner <- df_all_random$player
+      elo_winner <- df_all_random$Elo
+      n_winner <- df_all_random$Matches
+      
+      #Inizio con la simulazione successiva
+      
+      p.16 <- sapply(1:16, function (g) tennis_prob(elo_winner[g*2-1], elo_winner[g*2]))
+      
+      match_result.16 <- rbern (16, p.16)
+      
+      elo_winner.16 <- ifelse(match_result.16 == 1, elo_winner[seq(1, 16, by = 2)], elo_winner[seq(2, 16, by = 2)])
+      
+      n_winner.16 <- ifelse(match_result.16 == 1, n_winner[seq(1, 16, by = 2)] + 1, n_winner[seq(2, 16, by = 2)] + 1)
+      
+      elo_winner.16 <- elo_winner.16 + ((250/((n_winner.16 + 5)^0.4)) * (ifelse(match_result.16 == 1, 1 - p.16, p.16)))
+      
+      
+      winner.16 <- ifelse(match_result.16 == 1, winner[seq(1, 16, by = 2)], winner[seq(2, 16, by = 2)])
+      table.16[t, ] <- winner.16
+      
+      p.8 <- sapply(1:8, function (m) tennis_prob(elo_winner.16[m*2-1], elo_winner.16[m*2]))
+      match_result.8 <- rbern (8, p.8)
+      
+      elo_winner.8 <- ifelse(match_result.8 == 1, elo_winner.16[seq(1, 16, by = 2)], elo_winner.16[seq(2, 16, by = 2)])
+      
+      n_winner.8 <- ifelse(match_result.8 == 1, n_winner.16[seq(1, 16, by = 2)] + 1, n_winner.16[seq(2, 16, by = 2)] + 1)
+      
+      elo_winner.8 <- elo_winner.8 + ((250/((n_winner.8 + 5)^0.4)) * (ifelse(match_result.8 == 1, 1 - p.8, p.8)))
+      winner.8 <- ifelse(match_result.8 == 1, winner.16[seq(1, 16, by = 2)], winner.16[seq(2, 16, by = 2)])
+      table.8[t, ] <- winner.8
+      
+      p.4 <- sapply(1:4, function (c) tennis_prob(elo_winner.8[c*2-1], elo_winner.8[c*2]))
+      match_result.4 <- rbern (4, p.4)
+      elo_winner.4 <- ifelse(match_result.4 == 1, elo_winner.8[seq(1, 8, by = 2)], elo_winner.8[seq(2, 8, by = 2)])
+      n_winner.4 <- ifelse(match_result.4 == 1, n_winner.8[seq(1, 8, by = 2)] + 1, n_winner.8[seq(2, 8, by = 2)] + 1)
+      elo_winner.4 <- elo_winner.4 + ((250/((n_winner.4 + 5)^0.4)) * (ifelse(match_result.4 == 1, 1 - p.4, p.4)))
+      winner.4 <- ifelse(match_result.4 == 1, winner.8[seq(1, 8, by = 2)], winner.8[seq(2, 8, by = 2)])
+      table.4[t, ] <- winner.4
+      
+      p.2 <- sapply(1:2, function (b) tennis_prob(elo_winner.4[b*2-1], elo_winner.4[b*2]))
+      match_result.2 <- rbern (2, p.2)
+      elo_winner.2 <- ifelse(match_result.2 == 1, elo_winner.4[seq(1, 4, by = 2)], elo_winner.4[seq(2, 4, by = 2)])
+      n_winner.2 <- ifelse(match_result.2 == 1, n_winner.4[seq(1, 4, by = 2)] + 1, n_winner.4[seq(2, 4, by = 2)] + 1)
+      elo_winner.2 <- elo_winner.2 + ((250/((n_winner.2 + 5)^0.2)) * (ifelse(match_result.2 == 1, 1 - p.2, p.2)))
+      winner.2 <- ifelse(match_result.2 == 1, winner.4[seq(1, 4, by = 2)], winner.4[seq(2, 4, by = 2)])
+      table.2[t, ] <- winner.2
+      
+      p.1 <- tennis_prob(elo_winner.2[1], elo_winner.2[2])
+      match_result.1 <- rbern(1, p.1)
+      elo_winner.1 <- if (match_result.1 == 1) elo_winner.2[1] else  elo_winner.2[2] 
+      n_winner.1 <- if (match_result.1 == 1)  n_winner.2[1] + 1 else n_winner.2[2] + 1
+      elo_winner.1 <- elo_winner.1 + ((250/((n_winner.1+5)^0.4)) * (ifelse(match_result.1 == 1, 1 - p.1, p.1))) 
+      winner.1 <- if (match_result.1 == 1) winner.2[1] else winner.2[2]
+      table.1[t, 1] <- winner.1
+    }
+    
+    
+    prob.16 <- table(table.16) / sim
+    prob.8 <- table(table.8) / sim
+    prob.4 <- table(table.4) / sim
+    prob.2 <- table(table.2) / sim
+    prob.1 <- table(table.1) / sim
+    
+    prob.16 <- sort(prob.16, decreasing = TRUE)
+    prob.8 <- sort(prob.8, decreasing = TRUE)
+    prob.4 <- sort(prob.4, decreasing = TRUE)
+    prob.2 <- sort(prob.2, decreasing = TRUE)
+    prob.1 <- sort(prob.1, decreasing = TRUE)
+    
+    odd.1 <- 1 / prob.1
+    odd.1 <- sort(odd.1, increasing = TRUE)
+    
+    return(list(prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
+    
+  }
+  else { 
+  stop("Questo torneo non è supportato dalla simulazione")
+}
+}
+
+        
+       
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+   
