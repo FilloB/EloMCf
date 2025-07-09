@@ -1037,6 +1037,12 @@ players_adj <- function(x){
   x[x == "O'Connell C."] <- "O Connell C."
   x[x == "Barrios T."] <- "Barrios M."
   x[x == "Alboran N."] <- "Moreno De Alboran N."
+  x[x == "Zapata B."] <- "Zapata Miralles B."
+  x[x == "Kwon S."] <- "Kwon S.W."
+  x[x == "Jr. M."] <- "Damm M."
+  
+  
+  
  
   
   
@@ -3265,7 +3271,7 @@ simulazione <- function(df, X, sim = 10000) {
       
       # Numero partite giocate
       n_partite_i_b <- sum(
-        (df$P_i == player.i_b | df$P_j == player.i_b)
+        (df$P_i == player.i_b | df$P_j == player.i_b) & df$Comment == "Completed"
       )
       
       # Salvo i risultati nei vettori
@@ -3467,7 +3473,7 @@ simulazione <- function(df, X, sim = 10000) {
       
       # Numero partite giocate
       n_partite_i_b <- sum(
-        (df$P_i == player.i_b | df$P_j == player.i_b)
+        (df$P_i == player.i_b | df$P_j == player.i_b) & df$Comment == "Completed"
       )
       
       # Salvo i risultati nei vettori
@@ -3687,7 +3693,7 @@ simulazione <- function(df, X, sim = 10000) {
       
       # Numero partite giocate
       n_partite_i_b <- sum(
-        (df$P_i == player.i_b | df$P_j == player.i_b)
+        (df$P_i == player.i_b | df$P_j == player.i_b) & df$Comment == "Completed"
       )
       
       # Salvo i risultati nei vettori
@@ -3921,7 +3927,7 @@ simulazione <- function(df, X, sim = 10000) {
       
       # Numero partite giocate
       n_partite_i_b <- sum(
-        (df$P_i == player.i_b | df$P_j == player.i_b)
+        (df$P_i == player.i_b | df$P_j == player.i_b) & df$Comment == "Completed"
       )
       
       # Salvo i risultati nei vettori
@@ -4047,6 +4053,38 @@ simulazione <- function(df, X, sim = 10000) {
   else { 
   stop("Questo torneo non è supportato dalla simulazione")
 }
+}
+
+get_players <- function(url, n) {
+  
+  # URL raw su GitHub
+  raw_url <- "https://raw.githubusercontent.com/FilloB/Table-Scrape/main/tennis_scrape_eurosport.py"
+  
+  # Percorso locale temporaneo
+  python_script <- file.path(tempdir(), "tennis_scrape_eurosport.py")
+  
+  # Scarica solo se non esiste già
+  if (!file.exists(python_script)) {
+    download.file(raw_url, python_script, quiet = TRUE)
+  }
+  # questo è il comando da eseguire
+  command <- paste(
+    shQuote(py_config()$python), 
+    shQuote(python_script), 
+    shQuote(url),
+    shQuote(n)
+  )
+  
+  # Questo esegue lo script e raccoglie l'output nella console 
+  output <- system(command, intern = TRUE)
+  
+  # Trova la riga JSON nell'output
+  json_line <- tail(output, 1)
+  
+  # Trasforma JSON in vettore R
+  players_formatted <- fromJSON(json_line)
+  
+  return(players_formatted)
 }
 
         
