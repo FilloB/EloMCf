@@ -4,47 +4,112 @@
 ## Funzioni tennis per modificare/visualizzare le funzioni che chiama quando fa library(EloMC) ##
 
 #merge
+merged_tennis_data <- function(gender = "ATP", end_year = 2025, start_year = 2013) {
 
-merged_tennis_data <- function(gender = "ATP") {
-  # Check if the 'welo' package is installed, and install it if not
-  if (!requireNamespace("welo", quietly = TRUE)) {
-    install.packages("welo")
+  # Input validation
+  if (!gender %in% c("ATP", "WTA")) {
+    stop("The 'gender' parameter must be 'ATP' or 'WTA'")
   }
 
-  # Load the 'welo' package
-  library(welo)
+  if (end_year < start_year) {
+    stop("End year cannot be earlier than start year")
+  }
 
-  # Load datasets for each year using the specified gender
-  X2013 <- suppressMessages(suppressWarnings(tennis_data("2013", gender)))
-  X2014 <- suppressMessages(suppressWarnings(tennis_data("2014", gender)))
-  X2015 <- suppressMessages(suppressWarnings(tennis_data("2015", gender)))
-  X2016 <- suppressMessages(suppressWarnings(tennis_data("2016", gender)))
-  X2017 <- suppressMessages(suppressWarnings(tennis_data("2017", gender)))
-  X2018 <- suppressMessages(suppressWarnings(tennis_data("2018", gender)))
-  X2019 <- suppressMessages(suppressWarnings(tennis_data("2019", gender)))
-  X2020 <- suppressMessages(suppressWarnings(tennis_data("2020", gender)))
-  X2021 <- suppressMessages(suppressWarnings(tennis_data("2021", gender)))
-  X2022 <- suppressMessages(suppressWarnings(tennis_data("2022", gender)))
-  X2023 <- suppressMessages(suppressWarnings(tennis_data("2023", gender)))
-  X2024 <- suppressMessages(suppressWarnings(tennis_data("2024", gender)))
-  X2025 <- suppressMessages(suppressWarnings(tennis_data("2025", gender)))
+  if (start_year < 2007) {
+    warning("Data might not be available for years before 2007")
+  }
 
+  # Installation and loading of welo package
+  if (!requireNamespace("welo", quietly = TRUE)) {
+    cat("📦 Installing 'welo' package...\n")
+    install.packages("welo", quiet = TRUE)
+  }
 
+  suppressPackageStartupMessages(library(welo))
 
-  # Remove specified columns
-  X2013 <- subset(X2013, select = -c(SJW, SJL, EXW, EXL, LBW, LBL))
-  X2014 <- subset(X2014, select = -c(SJW, SJL, EXW, EXL, LBW, LBL))
-  X2015 <- subset(X2015, select = -c(EXW, EXL, LBW, LBL))
-  X2016 <- subset(X2016, select = -c(EXW, EXL, LBW, LBL))
-  X2017 <- subset(X2017, select = -c(EXW, EXL, LBW, LBL))
-  X2018 <- subset(X2018, select = -c(EXW, EXL, LBW, LBL))
+  # Create sequence of years
+  years <- start_year:end_year
+  n_years <- length(years)
 
-  # Combine all datasets into one
-  X <- rbind(X2013, X2014, X2015, X2016, X2017, X2018, X2019, X2020, X2021, X2022, X2023, X2024, X2025)
+  cat("🎾 Downloading", gender, "tennis data from", start_year, "to", end_year, "\n")
+  cat("📊 Processing", n_years, "years of data...\n\n")
 
-  print("Download completed.")
+  # List to store datasets
+  tennis_datasets <- list()
 
-  return(X)
+  # Simple progress bar
+  pb_width <- 50
+
+  # Download data for each year
+  for (i in seq_along(years)) {
+    year <- as.character(years[i])
+
+    # Update progress bar
+    progress <- i / n_years
+    filled <- floor(progress * pb_width)
+    bar <- paste0(
+      "[",
+      paste(rep("█", filled), collapse = ""),
+      paste(rep("░", pb_width - filled), collapse = ""),
+      "] ",
+      sprintf("%3.0f%%", progress * 100),
+      " - Year ", year
+    )
+    cat("\r", bar)
+
+    # Download data with error handling
+    tryCatch({
+      data_year <- suppressMessages(suppressWarnings(tennis_data(year, gender)))
+
+      # Remove specific columns based on year - AGGIUNTA LA CONDIZIONE PER IL 2025
+      columns_to_remove <- c()
+
+      if (as.numeric(year) <= 2014) {
+        columns_to_remove <- c("SJW", "SJL", "EXW", "EXL", "LBW", "LBL")
+      } else if (as.numeric(year) <= 2018) {
+        columns_to_remove <- c("EXW", "EXL", "LBW", "LBL")
+      } else if (as.numeric(year) == 2025) {
+        columns_to_remove <- c("BFEW", "BFEL")
+      }
+
+      # Remove columns if they exist in the dataset
+      if (length(columns_to_remove) > 0) {
+        existing_cols <- intersect(columns_to_remove, names(data_year))
+        if (length(existing_cols) > 0) {
+          data_year <- data_year[, !names(data_year) %in% existing_cols, drop = FALSE]
+        }
+      }
+
+      tennis_datasets[[year]] <- data_year
+
+    }, error = function(e) {
+      cat("\n⚠️  Error downloading data for year", year, ":", e$message, "\n")
+    })
+  }
+
+  cat("\n\n🔄 Merging datasets...\n")
+
+  # Check if any datasets were downloaded
+  if (length(tennis_datasets) == 0) {
+    stop("❌ No data was downloaded successfully")
+  }
+
+  # Merge all datasets
+  merged_data <- do.call(rbind, tennis_datasets)
+
+  # Final statistics
+  n_matches <- nrow(merged_data)
+  n_tournaments <- length(unique(merged_data$Tournament))
+  date_range <- range(as.Date(merged_data$Date), na.rm = TRUE)
+
+  cat("✅ Download completed successfully!\n")
+  cat("📈 Dataset statistics:\n")
+  cat("   • Total matches:", format(n_matches, big.mark = ".", decimal.mark = ","), "\n")
+  cat("   • Unique tournaments:", n_tournaments, "\n")
+  cat("   • Period:", format(date_range[1], "%d/%m/%Y"), "-", format(date_range[2], "%d/%m/%Y"), "\n")
+  cat("   • Years processed:", paste(names(tennis_datasets), collapse = ", "), "\n\n")
+
+  return(merged_data)
 }
 
 
@@ -538,394 +603,6 @@ compute_elo <- function (x, W = "GAMES", SP = 1500, K = "Kovalchik", s=0.5, CI =
   return(res)
 }
 
-primo_turno <- function(df, player_names, Serie = NA) {
-
-  P_i <- c()
-  P_j <- c()
-  Outcome_P_i <- c()
-  Outcome_P_j <- c()
-  n_partite_i <- c()
-  n_partite_j <- c()
-  Elo_i_before_match <- c()
-  Elo_j_before_match <- c()
-  Elo_pi_hat <- c()
-  Elo_i_after_match <- c()
-  Elo_j_after_match <- c()
-
- if (Serie == "ATP250") {
-  sub_vector <- player_names[25:length(player_names)]
-
-  Winner <- character(12)
-  Loser <- character(12)
-
-  for (j in 1:12) {
-    player1 <- player_names[(j-1)*2+1]
-    player2 <- player_names[(j-1)*2 + 2]
-
-    if (player1 %in% sub_vector) {
-      Winner[j] <- player1
-      Loser[j] <- player2
-    } else {
-      Winner[j] <- player2
-      Loser[j] <- player1
-    }
-  }
-
-  df_1 <- data.frame(Winner, Loser, stringsAsFactors = FALSE)
-  print(df_1)
-
-  for (i in 1:nrow(df_1)) {
-
-    P_i[i] <- df_1$Winner[i]
-    P_j[i] <- df_1$Loser[i]
-    Outcome_P_i[i] <- 1
-    Outcome_P_j[i] <- 0
-
-    indx_i <- tail(which(df$P_i == df_1$Winner[i]| df$P_j == df_1$Winner[i]), 1)
-    if (length(indx_i) == 0) {
-      Elo_i_before_match[i] <- 1500
-    } else {
-      if (df$P_i[indx_i] == df_1$Winner[i]) {
-        Elo_i_before_match[i] <- df$Elo_i_after_match[indx_i]
-      } else {
-        Elo_i_before_match[i] <- df$Elo_j_after_match[indx_i]
-      }
-    }
-
-    indx_j <- tail(which(df$P_i == df_1$Loser[i] | df$P_j == df_1$Loser[i]), 1)
-    if (length(indx_j) == 0) {
-      Elo_j_before_match[i] <- 1500
-    } else {
-      if (df$P_i[indx_j] == Loser[i]) {
-        Elo_j_before_match[i] <- df$Elo_i_after_match[indx_j]
-      } else {
-        Elo_j_before_match[i] <- df$Elo_j_after_match[indx_j]
-      }
-    }
-
-
-    n_partite_i_sx <- sum(
-      df$P_i == df_1$Winner[i] & df$Comment == "Completed"
-    )
-
-    n_partite_i_dx <- sum(
-      df$P_j == df_1$Winner[i] & df$Comment == "Completed"
-    )
-
-    n_partite_i <- n_partite_i_sx + n_partite_i_dx + 1
-
-    n_partite_j_sx <- sum(
-      df$P_i == df_1$Loser[i] & df$Comment == "Completed"
-    )
-
-    n_partite_j_dx <- sum(
-      df$P_j == df_1$Loser[i] & df$Comment == "Completed"
-    )
-
-    n_partite_j <- n_partite_j_sx + n_partite_j_dx + 1
-
-
-
-    Elo_pi_hat[i] <- tennis_prob(Elo_i_before_match[i], Elo_j_before_match[i])
-
-
-    K_Winner <- 250/(n_partite_i + 5)^0.4
-    K_Loser <- 250/(n_partite_j + 5)^0.4
-
-    #Calcolo ELO after match
-
-    Elo_i_after_match[i] <- Elo_i_before_match[i] + K_Winner * (1 - Elo_pi_hat[i])
-    Elo_j_after_match[i] <- Elo_j_before_match[i] - K_Loser * (1 - Elo_pi_hat[i])
-  }
-  df_2 <- data.frame(
-    P_i, P_j, Outcome_P_i, Outcome_P_j, Elo_i_before_match, Elo_j_before_match, Elo_pi_hat, Elo_i_after_match, Elo_j_after_match
-  )
-  df_merged <- bind_rows(df, df_2)
-
-  return(df_merged)
- }
-  else if (Serie == "ATP500") {
-
-      sub_vector <- player_names[33:length(player_names)]
-
-      Winner <- character(16)
-      Loser <- character(16)
-
-      for (j in 1:16) {
-        player1 <- player_names[(j-1)*2+1]
-        player2 <- player_names[(j-1)*2 + 2]
-
-        if (player1 %in% sub_vector) {
-          Winner[j] <- player1
-          Loser[j] <- player2
-        } else {
-          Winner[j] <- player2
-          Loser[j] <- player1
-        }
-      }
-
-      df_1 <- data.frame(Winner, Loser, stringsAsFactors = FALSE)
-      print(df_1)
-
-      for (i in 1:nrow(df_1)) {
-
-        P_i[i] <- df_1$Winner[i]
-        P_j[i] <- df_1$Loser[i]
-        Outcome_P_i[i] <- 1
-        Outcome_P_j[i] <- 0
-
-        indx_i <- tail(which(df$P_i == df_1$Winner[i]| df$P_j == df_1$Winner[i]), 1)
-        if (length(indx_i) == 0) {
-          Elo_i_before_match[i] <- 1500
-        } else {
-          if (df$P_i[indx_i] == df_1$Winner[i]) {
-            Elo_i_before_match[i] <- df$Elo_i_after_match[indx_i]
-          } else {
-            Elo_i_before_match[i] <- df$Elo_j_after_match[indx_i]
-          }
-        }
-
-        indx_j <- tail(which(df$P_i == df_1$Loser[i] | df$P_j == df_1$Loser[i]), 1)
-        if (length(indx_j) == 0) {
-          Elo_j_before_match[i] <- 1500
-        } else {
-          if (df$P_i[indx_j] == Loser[i]) {
-            Elo_j_before_match[i] <- df$Elo_i_after_match[indx_j]
-          } else {
-            Elo_j_before_match[i] <- df$Elo_j_after_match[indx_j]
-          }
-        }
-
-
-        n_partite_i_sx <- sum(
-          df$P_i == df_1$Winner[i] & df$Comment == "Completed"
-        )
-
-        n_partite_i_dx <- sum(
-          df$P_j == df_1$Winner[i] & df$Comment == "Completed"
-        )
-
-        n_partite_i <- n_partite_i_sx + n_partite_i_dx + 1
-
-        n_partite_j_sx <- sum(
-          df$P_i == df_1$Loser[i] & df$Comment == "Completed"
-        )
-
-        n_partite_j_dx <- sum(
-          df$P_j == df_1$Loser[i] & df$Comment == "Completed"
-        )
-
-        n_partite_j <- n_partite_j_sx + n_partite_j_dx + 1
-
-
-
-        Elo_pi_hat[i] <- tennis_prob(Elo_i_before_match[i], Elo_j_before_match[i])
-
-
-        K_Winner <- 250/(n_partite_i + 5)^0.4
-        K_Loser <- 250/(n_partite_j + 5)^0.4
-
-        #Calcolo ELO after match
-
-        Elo_i_after_match[i] <- Elo_i_before_match[i] + K_Winner * (1 - Elo_pi_hat[i])
-        Elo_j_after_match[i] <- Elo_j_before_match[i] - K_Loser * (1 - Elo_pi_hat[i])
-      }
-      df_2 <- data.frame(
-        P_i, P_j, Outcome_P_i, Outcome_P_j, Elo_i_before_match, Elo_j_before_match, Elo_pi_hat, Elo_i_after_match, Elo_j_after_match
-      )
-      df_merged <- bind_rows(df, df_2)
-
-      return(df_merged)
-
-  }
-  else if (Serie == "Masters 1000") {
-    if (length(player_names) == 128) {
-    sub_vector <- player_names[65:length(player_names)]
-
-    Winner <- character(32)
-    Loser <- character(32)
-
-    for (j in 1:32) {
-      player1 <- player_names[(j-1)*2+1]
-      player2 <- player_names[(j-1)*2 + 2]
-
-      if (player1 %in% sub_vector) {
-        Winner[j] <- player1
-        Loser[j] <- player2
-      } else {
-        Winner[j] <- player2
-        Loser[j] <- player1
-      }
-    }
-
-    df_1 <- data.frame(Winner, Loser, stringsAsFactors = FALSE)
-    print(df_1)
-
-    for (i in 1:nrow(df_1)) {
-
-      P_i[i] <- df_1$Winner[i]
-      P_j[i] <- df_1$Loser[i]
-      Outcome_P_i[i] <- 1
-      Outcome_P_j[i] <- 0
-
-      indx_i <- tail(which(df$P_i == df_1$Winner[i]| df$P_j == df_1$Winner[i]), 1)
-      if (length(indx_i) == 0) {
-        Elo_i_before_match[i] <- 1500
-      } else {
-        if (df$P_i[indx_i] == df_1$Winner[i]) {
-          Elo_i_before_match[i] <- df$Elo_i_after_match[indx_i]
-        } else {
-          Elo_i_before_match[i] <- df$Elo_j_after_match[indx_i]
-        }
-      }
-
-      indx_j <- tail(which(df$P_i == df_1$Loser[i] | df$P_j == df_1$Loser[i]), 1)
-      if (length(indx_j) == 0) {
-        Elo_j_before_match[i] <- 1500
-      } else {
-        if (df$P_i[indx_j] == Loser[i]) {
-          Elo_j_before_match[i] <- df$Elo_i_after_match[indx_j]
-        } else {
-          Elo_j_before_match[i] <- df$Elo_j_after_match[indx_j]
-        }
-      }
-
-
-      n_partite_i_sx <- sum(
-        df$P_i == df_1$Winner[i] & df$Comment == "Completed"
-      )
-
-      n_partite_i_dx <- sum(
-        df$P_j == df_1$Winner[i] & df$Comment == "Completed"
-      )
-
-      n_partite_i <- n_partite_i_sx + n_partite_i_dx + 1
-
-      n_partite_j_sx <- sum(
-        df$P_i == df_1$Loser[i] & df$Comment == "Completed"
-      )
-
-      n_partite_j_dx <- sum(
-        df$P_j == df_1$Loser[i] & df$Comment == "Completed"
-      )
-
-      n_partite_j <- n_partite_j_sx + n_partite_j_dx + 1
-
-
-
-      Elo_pi_hat[i] <- tennis_prob(Elo_i_before_match[i], Elo_j_before_match[i])
-
-
-      K_Winner <- 250/(n_partite_i + 5)^0.4
-      K_Loser <- 250/(n_partite_j + 5)^0.4
-
-      #Calcolo ELO after match
-
-      Elo_i_after_match[i] <- Elo_i_before_match[i] + K_Winner * (1 - Elo_pi_hat[i])
-      Elo_j_after_match[i] <- Elo_j_before_match[i] - K_Loser * (1 - Elo_pi_hat[i])
-    }
-    df_2 <- data.frame(
-      P_i, P_j, Outcome_P_i, Outcome_P_j, Elo_i_before_match, Elo_j_before_match, Elo_pi_hat, Elo_i_after_match, Elo_j_after_match
-    )
-    df_merged <- bind_rows(df, df_2)
-
-    return(df_merged)
-    }
-    else if (length(players) == 80) {
-      print("è giusto tranquillo")
-      sub_vector <- player_names[49:length(player_names)]
-
-      Winner <- character(24)
-      Loser <- character(24)
-
-      for (j in 1:24) {
-        player1 <- player_names[(j-1)*2+1]
-        player2 <- player_names[(j-1)*2 + 2]
-
-        if (player1 %in% sub_vector) {
-          Winner[j] <- player1
-          Loser[j] <- player2
-        } else {
-          Winner[j] <- player2
-          Loser[j] <- player1
-        }
-      }
-
-      df_1 <- data.frame(Winner, Loser, stringsAsFactors = FALSE)
-      print(df_1)
-
-      for (i in 1:nrow(df_1)) {
-
-        P_i[i] <- df_1$Winner[i]
-        P_j[i] <- df_1$Loser[i]
-        Outcome_P_i[i] <- 1
-        Outcome_P_j[i] <- 0
-
-        indx_i <- tail(which(df$P_i == df_1$Winner[i]| df$P_j == df_1$Winner[i]), 1)
-        if (length(indx_i) == 0) {
-          Elo_i_before_match[i] <- 1500
-        } else {
-          if (df$P_i[indx_i] == df_1$Winner[i]) {
-            Elo_i_before_match[i] <- df$Elo_i_after_match[indx_i]
-          } else {
-            Elo_i_before_match[i] <- df$Elo_j_after_match[indx_i]
-          }
-        }
-
-        indx_j <- tail(which(df$P_i == df_1$Loser[i] | df$P_j == df_1$Loser[i]), 1)
-        if (length(indx_j) == 0) {
-          Elo_j_before_match[i] <- 1500
-        } else {
-          if (df$P_i[indx_j] == Loser[i]) {
-            Elo_j_before_match[i] <- df$Elo_i_after_match[indx_j]
-          } else {
-            Elo_j_before_match[i] <- df$Elo_j_after_match[indx_j]
-          }
-        }
-
-
-        n_partite_i_sx <- sum(
-          df$P_i == df_1$Winner[i] & df$Comment == "Completed"
-        )
-
-        n_partite_i_dx <- sum(
-          df$P_j == df_1$Winner[i] & df$Comment == "Completed"
-        )
-
-        n_partite_i <- n_partite_i_sx + n_partite_i_dx + 1
-
-        n_partite_j_sx <- sum(
-          df$P_i == df_1$Loser[i] & df$Comment == "Completed"
-        )
-
-        n_partite_j_dx <- sum(
-          df$P_j == df_1$Loser[i] & df$Comment == "Completed"
-        )
-
-        n_partite_j <- n_partite_j_sx + n_partite_j_dx + 1
-
-
-
-        Elo_pi_hat[i] <- tennis_prob(Elo_i_before_match[i], Elo_j_before_match[i])
-
-
-        K_Winner <- 250/(n_partite_i + 5)^0.4
-        K_Loser <- 250/(n_partite_j + 5)^0.4
-
-        #Calcolo ELO after match
-
-        Elo_i_after_match[i] <- Elo_i_before_match[i] + K_Winner * (1 - Elo_pi_hat[i])
-        Elo_j_after_match[i] <- Elo_j_before_match[i] - K_Loser * (1 - Elo_pi_hat[i])
-      }
-      df_2 <- data.frame(
-        P_i, P_j, Outcome_P_i, Outcome_P_j, Elo_i_before_match, Elo_j_before_match, Elo_pi_hat, Elo_i_after_match, Elo_j_after_match
-      )
-      df_merged <- bind_rows(df, df_2)
-
-      return(df_merged)
-    }
-  }
-}
 
 
 
@@ -1041,6 +718,48 @@ players_adj <- function(x){
   x[x == "Kwon S."] <- "Kwon S.W."
   x[x == "Jr. M."] <- "Damm M."
   x[x == "Llamas P."] <- "Llamas Ruiz P."
+  x[x == "Ficovich J."] <- "Ficovich J.P."
+  x[x == "Alvarez L."] <- "Alvarez Valdes L.C."
+  x[x == "Pacheco R."] <- "Pacheco Mendez R."
+  x[x == "Barrios Vera T."] <- "Barrios M."
+  x[x == "Kjaer N."] <- "Budkov Kjaer N."
+  x[x == "Vinciguerra W."] <- "Rejchtman Vinciguerra W."
+  x[x == "Tirante T."] <- "Tirante T.A."
+  x[x == "Galan D."] <- "Galan D.E."
+  x[x == "Londero J."] <- "Londero J.I."
+  x[x == "Husler M."] <- "Huesler M.A."
+  x[x == "Moro A."] <- "Moro Canas A."
+  x[x == "Statham R."] <- "Statham J."
+  x[x == "Tsonga J."] <- "Tsonga J.W."
+  x[x == "Menendez A."] <- "Menendez-Maceiras A."
+  x[x == "Stebe C."] <- "Stebe C-M."
+  x[x == "Lopez G."] <- "Garcia-Lopez G."
+  x[x == "Alves F."] <- "Meligeni Alves F."
+  x[x == "Varillas J."] <- "Varillas J. P."
+  x[x == "Potro J."] <- "Del Potro J.M."
+  x[x == "Pucinelli M."] <- "Pucinelli de Almeida M."
+  x[x == "Jianu F."] <- "Jianu F.C."
+  x[x == "Laaroussi Y."] <- "Lalami Laaroussi Y."
+  x[x == "Silva D."] <- "Dutra Da Silva D."
+  x[x == "Schwarzler J."] <- "Schwaerzler J."
+  x[x == "Guillen A."] <- "Guillen Meza A."
+  x[x == "Silva R."] <- "Dutra Silva R."
+  x[x == "Bakker T."] <- "De Bakker T."
+  x[x == "Rijthoven T."] <- "Van Rijthoven T."
+  x[x == "Kuznetsov A."] <- "Kuznetsov An."
+  x[x == "Alvarez N."] <- "Alvarez Varona N."
+  x[x == "Kwiatkowski T."] <- "Kwiatkowski T.S."
+  x[x == "Wu T."] <- "Wu T.L."
+  x[x == "Lee D."] <- "Lee D.H."
+  x[x == "Gimeno C."] <- "Gimeno Valero C."
+  x[x == "Herbert P."] <- "Herbert P.H."
+
+
+
+
+
+
+
 
 
 
@@ -1060,6 +779,59 @@ players_adj <- function(x){
   x[x == "Liang E."] <- "Liang E.S."
   x[x == "Grant T."] <- "Grant T.C."
   x[x == "Martinez C."] <- "Martinez Cirez C."
+  x[x == "Tig P."] <- "Tig P.M."
+  x[x == "Popa G."] <- "Popa G.S."
+  x[x == "Herrero A."] <- "Herrero Linana A."
+  x[x == "Akugue N."] <- "Noha Akugue N."
+  x[x == "Huergo N."] <- "Fossa Huergo N."
+  x[x == "Romero L."] <- "Romero Gormaz L."
+  x[x == "Geerlings A."] <- "Geerlings Martinez A."
+  x[x == "Pliskova K."] <- "Pliskova Ka."
+
+  x[x == "Hsieh S."] <- "Hsieh S.W."
+  x[x == "Vogele S."] <- "Voegele S."
+  x[x == "Uytvanck A."] <- "Van Uytvanck A."
+  x[x == "Soler S."] <- "Soler-Espinosa S."
+  x[x == "Gorges J."] <- "Goerges J."
+  x[x == "McHale C."] <- "Mchale C."
+  x[x == "Suarez C."] <- "Suarez Navarro C."
+  x[x == "Hourigan P."] <- "Hourigan P.M."
+  x[x == "Arconada U."] <- "Arconada U.M."
+  x[x == "Friedsam A."] <- "Friedsam A.L."
+  x[x == "Contreras F."] <- "Contreras Gomez F."
+  x[x == "Sharan S."] <- "Murray S."
+  x[x == "Xun F."] <- "Xun F.Y."
+  x[x == "Duan Y."] <- "Duan Y.Y."
+  x[x == "Pattinama-Kerkhove L."] <- "Pattinama Kerkhove L."
+  x[x == "Wu H."] <- "Wu H.C."
+  x[x == "Deichmann K."] <- "Von Deichmann K."
+  x[x == "Rajaonah T."] <- "Rakotomanga Rajaonah T."
+  x[x == "Harrison C."] <- "Harrison Ca."
+  x[x == "Jani R."] <- "Jani R.L."
+  x[x == "Garcia G."] <- "Garcia Perez G."
+  x[x == "Lorenzo F."] <- "Di Lorenzo F."
+  x[x == "Vicens R."] <- "Vicens Mas R."
+  x[x == "Higuita M."] <- "Higuita Barraza M."
+  x[x == "Mediorreal V."] <- "Mediorreal A.V."
+  x[x == "Torres M."] <- "Torres Murcia M.C."
+  x[x == "Ghioroaie I."] <- "Ghioroaie I.G"
+  x[x == "Broek I."] <- "Van den Broek I.L."
+  x[x == "Peeters A."] <- "Vrancken Peeters A."
+  x[x == "Aouni A."] <- "El Aouni A."
+  x[x == "Allami M."] <- "El Allami M."
+  x[x == "Fita A."] <- "Fita Boluda A."
+  x[x == "Han N."] <- "Han N.L."
+  x[x == "Sanchez A."] <- "Sanchez A.S."
+  x[x == "Wang X."] <- "Wang Xin."
+
+
+
+
+  tail(Table[grepl("Mcdonald", Table$P_j), 2:7], 15)
+
+
+
+
 
 
 
@@ -1079,7 +851,6 @@ players_adj <- function(x){
 
 #Ho aggiunto la possibilità di scegliere se usare l'Elo o il WElo
 define_tournament <- function (X, start_date, Tournament = NULL, Serie = "Grand Slam", WELO = FALSE){
-print("dentatp diversi")
   # Controllo sulla Serie
   if (!(Serie %in% c("Grand Slam", "Masters 1000", "WTA1000", "ATP500", "ATP250", "WTA250", "WTA500"))) {
     stop("Error: Serie not valid. Choose between: Grand Slam, Masters 1000, WTA1000, ATP500, WTA500, ATP250, WTA250")
@@ -1735,10 +1506,6 @@ print("dentatp diversi")
       if (!(length(successive_rows.16) == 16)) {
         stop("Invalid number of matches for the first round")
       }
-      if (length(successive_rows.16) == 16) {
-        print("Indici delle righe selezionate per il primo turno:")
-        print(successive_rows.16)
-      }
 
       inizio_16 <- min(successive_rows.16)
       turno_sedicesimi <- X[successive_rows.16, ]
@@ -1789,7 +1556,6 @@ print("dentatp diversi")
         if (X$Tournament[i] == Tournament & X$Round[i] == "2nd Round" & X$Series[i] == Serie) {
           successive_rows.8 <- c(successive_rows.8, i)
           if (length(successive_rows.8) == 8) {
-            print(successive_rows.8)
             break
           }
         }
@@ -3415,6 +3181,8 @@ simulazione <- function(df, X, sim = 10000) {
       stringsAsFactors = FALSE
     )
 
+
+
     winner <- df_all$player
     elo_winner <- df_all$Elo
     n_winner <- df_all$Matches
@@ -3916,6 +3684,7 @@ simulazione <- function(df, X, sim = 10000) {
         Matches = matches_vec,
         stringsAsFactors = FALSE
       )
+
 
       winner <- df_all$player
       elo_winner <- df_all$Elo
