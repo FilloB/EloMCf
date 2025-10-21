@@ -4,12 +4,8 @@ export(clean_data)
 export(compute_elo)
 export(create_table)
 export(players_adj)
-<<<<<<< HEAD
-export(primo_turno)
 export(define_tournament)
 export(simulate_tournament)
 export(simulazione)
-=======
-export(define_tournament)
-export(simulate_tournament)
->>>>>>> 6b67359610a28ade8cb151ea99a91bbb374937bd
+export(get_players)
+
