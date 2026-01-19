@@ -4,46 +4,46 @@
 ## Funzioni tennis per modificare/visualizzare le funzioni che chiama quando fa library(EloMC) ##
 
 #merge
-merged_tennis_data <- function(gender = "ATP", end_year = 2025, start_year = 2013) {
-
+merged_tennis_data <- function(gender = "ATP", end_year = 2026, start_year = 2013) {
+  
   # Input validation
   if (!gender %in% c("ATP", "WTA")) {
     stop("The 'gender' parameter must be 'ATP' or 'WTA'")
   }
-
+  
   if (end_year < start_year) {
     stop("End year cannot be earlier than start year")
   }
-
+  
   if (start_year < 2007) {
     warning("Data might not be available for years before 2007")
   }
-
+  
   # Installation and loading of welo package
   if (!requireNamespace("welo", quietly = TRUE)) {
     cat("📦 Installing 'welo' package...\n")
     install.packages("welo", quiet = TRUE)
   }
-
+  
   suppressPackageStartupMessages(library(welo))
-
+  
   # Create sequence of years
   years <- start_year:end_year
   n_years <- length(years)
-
+  
   cat("🎾 Downloading", gender, "tennis data from", start_year, "to", end_year, "\n")
   cat("📊 Processing", n_years, "years of data...\n\n")
-
+  
   # List to store datasets
   tennis_datasets <- list()
-
+  
   # Simple progress bar
   pb_width <- 50
-
+  
   # Download data for each year
   for (i in seq_along(years)) {
     year <- as.character(years[i])
-
+    
     # Update progress bar
     progress <- i / n_years
     filled <- floor(progress * pb_width)
@@ -56,25 +56,24 @@ merged_tennis_data <- function(gender = "ATP", end_year = 2025, start_year = 201
       " - Year ", year
     )
     cat("\r", bar)
-
+    
     # Download data with error handling
     tryCatch({
       data_year <- suppressMessages(suppressWarnings(tennis_data(year, gender)))
-
+      
       # Remove specific columns based on year - AGGIUNTA LA CONDIZIONE PER IL 2025
       columns_to_remove <- c()
-
-      if (as.numeric(year) <= 2014) {
+      
+      year_num <- as.numeric(year)
+      
+      if (year_num <= 2014) {
         columns_to_remove <- c("SJW", "SJL", "EXW", "EXL", "LBW", "LBL")
-      } else if (as.numeric(year) <= 2018) {
+      } else if (year_num <= 2018) {
         columns_to_remove <- c("EXW", "EXL", "LBW", "LBL")
-      } else if (as.numeric(year) == 2025) {
+      } else if (year_num %in% c(2025,2026)) {
         columns_to_remove <- c("BFEW", "BFEL")
       }
-      else if (as.numeric(year) == 2026) {
-        columns_to_remove <- c("BFEW", "BFEL")
-      }
-
+      
       # Remove columns if they exist in the dataset
       if (length(columns_to_remove) > 0) {
         existing_cols <- intersect(columns_to_remove, names(data_year))
@@ -82,36 +81,36 @@ merged_tennis_data <- function(gender = "ATP", end_year = 2025, start_year = 201
           data_year <- data_year[, !names(data_year) %in% existing_cols, drop = FALSE]
         }
       }
-
+      
       tennis_datasets[[year]] <- data_year
-
+      
     }, error = function(e) {
       cat("\n⚠️  Error downloading data for year", year, ":", e$message, "\n")
     })
   }
-
+  
   cat("\n\n🔄 Merging datasets...\n")
-
+  
   # Check if any datasets were downloaded
   if (length(tennis_datasets) == 0) {
     stop("❌ No data was downloaded successfully")
   }
-
+  
   # Merge all datasets
   merged_data <- do.call(rbind, tennis_datasets)
-
+  
   # Final statistics
   n_matches <- nrow(merged_data)
   n_tournaments <- length(unique(merged_data$Tournament))
   date_range <- range(as.Date(merged_data$Date), na.rm = TRUE)
-
+  
   cat("✅ Download completed successfully!\n")
   cat("📈 Dataset statistics:\n")
   cat("   • Total matches:", format(n_matches, big.mark = ".", decimal.mark = ","), "\n")
   cat("   • Unique tournaments:", n_tournaments, "\n")
   cat("   • Period:", format(date_range[1], "%d/%m/%Y"), "-", format(date_range[2], "%d/%m/%Y"), "\n")
   cat("   • Years processed:", paste(names(tennis_datasets), collapse = ", "), "\n\n")
-
+  
   return(merged_data)
 }
 
