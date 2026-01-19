@@ -4,7 +4,7 @@
 ## Funzioni tennis per modificare/visualizzare le funzioni che chiama quando fa library(EloMC) ##
 
 #merge
-merged_tennis_data <- function(gender = "ATP", end_year = 2026, start_year = 2013) {
+merged_tennis_data <- function(gender = "ATP", end_year = 2025, start_year = 2013) {
 
   # Input validation
   if (!gender %in% c("ATP", "WTA")) {
