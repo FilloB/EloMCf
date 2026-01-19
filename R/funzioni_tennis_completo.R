@@ -71,6 +71,9 @@ merged_tennis_data <- function(gender = "ATP", end_year = 2026, start_year = 201
       } else if (as.numeric(year) == 2025) {
         columns_to_remove <- c("BFEW", "BFEL")
       }
+      else if (as.numeric(year) == 2026) {
+        columns_to_remove <- c("BFEW", "BFEL")
+      }
 
       # Remove columns if they exist in the dataset
       if (length(columns_to_remove) > 0) {
