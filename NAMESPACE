@@ -8,4 +8,5 @@ export(define_tournament)
 export(simulate_tournament)
 export(simulazione)
 export(get_players)
-
+export(check_players)
+export(calc_bets)
