@@ -4092,9 +4092,90 @@ get_players <- function(url, n) {
   return(players_formatted)
 }
 
+check_players <- function(Table, players) { 
+  players_in_table <- unique(c(Table$P_i, Table$P_j))
+  players_diff <- setdiff(players, players_in_table)
+  
+  if (length(players_diff) > 0) { 
+    print(paste(
+      "The following players seem not to be listed among the known players:",
+      paste(players_diff, collapse = ", ")
+    ))
+  } else {
+    print("No missing player")
+  }
+  
+  duplicated_players <- duplicated(players)
+  
+  if (any(duplicated_players)) {
+    players_repeated <- players[duplicated_players]
+    print(paste(
+      "The following players appear twice:",
+      paste(players_repeated, collapse = ", ")
+    ))
+  } else {
+    print("No repeated players")
+  }
+  
+  print(players)
+}
 
-
-
+calc_bets <- function(prob, quotes, q_values, r_values) {
+  
+  prob_elo <- as.data.frame(prob)
+  stopifnot(ncol(prob_elo) >= 2)
+  names(prob_elo)[1:2] <- c("Player", "Prob_elo")
+  
+  quotes$Player <- trimws(quotes$Player)
+  
+  df <- merge(quotes, prob_elo, by = "Player")
+  
+  if (!("Prob_bookmaker" %in% names(df))) stop("Manca la colonna 'Prob_bookmaker' in quotes dopo il merge.")
+  if (!("Quota" %in% names(df))) stop("Manca la colonna 'Quota' in quotes dopo il merge.")
+  
+  df$Prob_elo <- as.numeric(df$Prob_elo)
+  df$Quota <- as.numeric(df$Quota)
+  
+  # Calcola il rapporto r = Prob_elo / Prob_bookmaker (solo se > 0.02)
+  df$r <- NA_real_
+  ok <- df$Prob_elo > 0.01
+  if (any(ok, na.rm = TRUE)) {
+    df$r[ok] <- df$Prob_elo[ok] / df$Prob_bookmaker[ok]
+  }
+  
+  # Tabella dei suggerimenti
+  results_df <- data.frame()
+  
+  for (q in q_values) {
+    for (r in r_values) {
+      subset_df <- df[df$Prob_bookmaker > q & (df$Prob_elo / df$Prob_bookmaker) > r, , drop = FALSE]
+      
+      if (nrow(subset_df) > 0) {
+        
+        # Aggiunge al risultato
+        results_df <- rbind(
+          results_df,
+          data.frame(
+            q = q,
+            r = r,
+            Player = subset_df$Player,
+            Quota = subset_df$Quota,
+            Prob_elo = round(subset_df$Prob_elo, 3),
+            Prob_bookmaker = round(subset_df$Prob_bookmaker, 3),
+            Ratio_r = round(subset_df$r, 3),
+            stringsAsFactors = FALSE
+          )
+        )
+      }
+    }
+  }
+  
+  if (nrow(results_df) == 0) {
+    message("Nessun giocatore soddisfa i criteri scelti.")
+  }
+  
+  return(results_df)
+}
 
 
 
