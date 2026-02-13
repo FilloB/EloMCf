@@ -2661,11 +2661,13 @@ simulate_tournament <- function(X, sim =  10000, WELO = FALSE) {
       table.1[t, 1] <- winner.1
     }
 
+    prob.16 <- table(table.16) / sim
     prob.8 <- table(table.8) / sim
     prob.4 <- table(table.4) / sim
     prob.2 <- table(table.2) / sim
     prob.1 <- table(table.1) / sim
 
+    prob.16 <- sort(prob.16, decreasing = TRUE)
     prob.8 <- sort(prob.8, decreasing = TRUE)
     prob.4 <- sort(prob.4, decreasing = TRUE)
     prob.2 <- sort(prob.2, decreasing = TRUE)
@@ -2677,7 +2679,7 @@ simulate_tournament <- function(X, sim =  10000, WELO = FALSE) {
     end <- Sys.time()
     cat("simulazione() took", round(end-start, 2), "seconds to run\n")
 
-    return(list(prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
+    return(list(prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
   }
 
   else if (n == 8){
