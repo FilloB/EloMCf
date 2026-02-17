@@ -3227,13 +3227,18 @@ simulazione <- function(df, X, sim = 10000) {
     table.1[t, 1] <- winner.1
     }
 
+    byes <- rep(1, length(df2$players))
+    names(byes) <- df2$players
 
-
+    prob.12 <- table(table.12) / sim
+    prob.12 <- c(prob.12, byes)
     prob.8 <- table(table.8) / sim
     prob.4 <- table(table.4) / sim
     prob.2 <- table(table.2) / sim
     prob.1 <- table(table.1) / sim
-
+    
+    
+    prob.12 <- sort(prob.12, decreasing = TRUE)
     prob.8 <- sort(prob.8, decreasing = TRUE)
     prob.4 <- sort(prob.4, decreasing = TRUE)
     prob.2 <- sort(prob.2, decreasing = TRUE)
@@ -3245,7 +3250,7 @@ simulazione <- function(df, X, sim = 10000) {
     end <- Sys.time()
     cat("simulazione() took", round(end-start, 2), "minutes to run\n")
 
-    return(list(prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
+    return(list(prob.opening = prob.12, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
   }
   else if (length(X) == 48) {
 
@@ -3486,12 +3491,18 @@ simulazione <- function(df, X, sim = 10000) {
     }
 
 
+    byes <- rep(1, length(df.2$players))
+    names(byes) <- df.2$players
+    
+    prob.16_p <- table(table.16_p) / sim
+    prob.16_p <- c(prob.16_p, byes)
     prob.16 <- table(table.16) / sim
     prob.8 <- table(table.8) / sim
     prob.4 <- table(table.4) / sim
     prob.2 <- table(table.2) / sim
     prob.1 <- table(table.1) / sim
 
+    prob.16 <- sort(prob.16_p, decreasing = TRUE)
     prob.16 <- sort(prob.16, decreasing = TRUE)
     prob.8 <- sort(prob.8, decreasing = TRUE)
     prob.4 <- sort(prob.4, decreasing = TRUE)
@@ -3504,7 +3515,7 @@ simulazione <- function(df, X, sim = 10000) {
     end <- Sys.time()
     cat("simulazione() took", round(end-start, 2), "seconds to run\n")
 
-    return(list(prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
+    return(list(prob.opening = prob.16_p, prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
 
   }
   else if (length(X) == 96) {
@@ -3760,6 +3771,11 @@ simulazione <- function(df, X, sim = 10000) {
       table.1[t, 1] <- winner.1
     }
 
+    byes <- rep(1, length(df.2$players))
+    names(byes) <- df.2$players
+    
+    prob.32_p <- table(table.32_p) / sim
+    prob.32_p <- c(prob.32_p, byes)
     prob.32 <- table(table.32) / sim
     prob.16 <- table(table.16) / sim
     prob.8 <- table(table.8) / sim
@@ -3767,6 +3783,7 @@ simulazione <- function(df, X, sim = 10000) {
     prob.2 <- table(table.2) / sim
     prob.1 <- table(table.1) / sim
 
+    prob.32_p <- sort(prob.32_p, decreasing = TRUE)
     prob.32 <- sort(prob.32, decreasing = TRUE)
     prob.16 <- sort(prob.16, decreasing = TRUE)
     prob.8 <- sort(prob.8, decreasing = TRUE)
@@ -3780,7 +3797,7 @@ simulazione <- function(df, X, sim = 10000) {
     end <- Sys.time()
     cat("Simulazione() took", round(end-start, 2), "seconds to run\n")
 
-    return(list(prob.32 = prob.32, prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
+    return(list(prob.opening = prob.32_p, prob.32 = prob.32, prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
 
   }
   else if (length(X) == 56) {
@@ -4036,12 +4053,18 @@ simulazione <- function(df, X, sim = 10000) {
     }
 
 
+    byes <- rep(1, length(df.2$players))
+    names(byes) z- df.2$players
+    
+    prob.24 <- table(table.24) / sim
+    prob.24 <- c(prob.24, byes)
     prob.16 <- table(table.16) / sim
     prob.8 <- table(table.8) / sim
     prob.4 <- table(table.4) / sim
     prob.2 <- table(table.2) / sim
     prob.1 <- table(table.1) / sim
 
+    prob.24 <- sort(prob.24, decreasing = TRUE)
     prob.16 <- sort(prob.16, decreasing = TRUE)
     prob.8 <- sort(prob.8, decreasing = TRUE)
     prob.4 <- sort(prob.4, decreasing = TRUE)
@@ -4054,7 +4077,7 @@ simulazione <- function(df, X, sim = 10000) {
     end <- Sys.time()
     cat("simulazione() took", round(end-start, 2), "seconds to run\n")
 
-    return(list(prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
+    return(list(prob.opening = prob.24, prob.16 = prob.16, prob.8 = prob.8, prob.4 = prob.4, prob.2 = prob.2, prob.1 = prob.1, odd.1 = odd.1))
 
   }
   else {
