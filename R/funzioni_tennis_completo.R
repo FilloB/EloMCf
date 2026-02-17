@@ -4054,7 +4054,7 @@ simulazione <- function(df, X, sim = 10000) {
 
 
     byes <- rep(1, length(df.2$players))
-    names(byes) z- df.2$players
+    names(byes) <- df.2$players
     
     prob.24 <- table(table.24) / sim
     prob.24 <- c(prob.24, byes)
