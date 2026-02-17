@@ -3227,17 +3227,13 @@ simulazione <- function(df, X, sim = 10000) {
     table.1[t, 1] <- winner.1
     }
 
-    byes <- rep(1, length(df.2$players))
-    names(byes) <- df.2$players
-    print(byes)
-
+    byes <- rep(1, length(df.2$player))
+    names(byes) <- df.2$player
     
     prob.12 <- table(table.12) / sim
     prob.12 <- as.numeric(prob.12)
     names(prob.12) <- names(table(table.12))
-    print(prob.12)
     prob.12 <- c(prob.12, byes)
-    print(prob.12)
     prob.8 <- table(table.8) / sim
     prob.4 <- table(table.4) / sim
     prob.2 <- table(table.2) / sim
