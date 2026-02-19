@@ -10,3 +10,5 @@ export(simulazione)
 export(get_players)
 export(check_players)
 export(calc_bets)
+export(update_tournament_history)
+
