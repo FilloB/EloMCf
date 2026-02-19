@@ -3493,8 +3493,8 @@ simulazione <- function(df, X, sim = 10000) {
     }
 
 
-    byes <- rep(1, length(df.2$players))
-    names(byes) <- df.2$players
+    byes <- rep(1, length(df.2$player))
+    names(byes) <- df.2$player
     
     prob.16_p <- table(table.16_p) / sim
     prob.16_p <- c(prob.16_p, byes)
@@ -3773,8 +3773,8 @@ simulazione <- function(df, X, sim = 10000) {
       table.1[t, 1] <- winner.1
     }
 
-    byes <- rep(1, length(df.2$players))
-    names(byes) <- df.2$players
+    byes <- rep(1, length(df.2$player))
+    names(byes) <- df.2$player
     
     prob.32_p <- table(table.32_p) / sim
     prob.32_p <- c(prob.32_p, byes)
@@ -4055,8 +4055,8 @@ simulazione <- function(df, X, sim = 10000) {
     }
 
 
-    byes <- rep(1, length(df.2$players))
-    names(byes) <- df.2$players
+    byes <- rep(1, length(df.2$player))
+    names(byes) <- df.2$player
     
     prob.24 <- table(table.24) / sim
     prob.24 <- c(prob.24, byes)
@@ -4203,8 +4203,914 @@ calc_bets <- function(prob, quotes, q_values, r_values) {
   
   return(results_df)
 }
+  
+primo_turno <- function(number, X, df) {
+    
+    if (number == 28) {
+      
+      # --- 0. VALIDATE AND DIVIDE THE VECTOR ---
+      if (length(X) != (28 + 16)) {
+        stop("You said that the tournament consists of 28 players, but in the vector X I see a length different from 44 (28 + 16). Please check your input carefully.")
+      }
+      
+      # Divide the vector: First 28 are the draw, last 16 are the Round 2 players
+      X_round1 <- X[1:28]
+      players_round2 <- X[29:44]
+      
+      # --- 1. INITIALIZE VECTORS ---
+      player.i.vec <- c()
+      player.j.vec <- c()
+      Elo_i.vec <- c()
+      Elo_j.vec <- c()
+      n_partite_i.vec <- c()
+      n_partite_j.vec <- c()
+      Elo_pi_hat.vec <- c()
+      
+      # New vectors for the results and updates
+      Outcome_i.vec <- c()
+      Outcome_j.vec <- c()
+      Elo_i_after.vec <- c()
+      Elo_j_after.vec <- c()
+      
+      # --- 2. SPLIT THE DRAW (Vector Division for Round 1 Matches) ---
+      # Indices to exclude (The Byes)
+      rows_to_exclude <- c(1, 8, 21, 28)
+      
+      # X_new contains the 24 players playing in the opening round (12 matches)
+      X_new <- X_round1[-rows_to_exclude] 
+      
+      # --- 3. LOOP THROUGH THE 12 MATCHES ---
+      for (i in 1:(length(X_new)/2)) {
+        player.i <- X_new[(i-1)*2+1]
+        player.j <- X_new[(i-1)*2+2]
+        
+        # --- A. FIND PRE-MATCH ELO ---
+        # Trovo Elo player.i
+        indx_i <- tail(which(df$P_i == player.i | df$P_j == player.i), 1)
+        if (length(indx_i) == 0) {
+          Elo_i <- 1500
+        } else {
+          if (df$P_i[indx_i] == player.i) {
+            Elo_i <- df$Elo_i_after_match[indx_i]
+          } else {
+            Elo_i <- df$Elo_j_after_match[indx_i]
+          }
+        }
+        
+        # Trovo Elo player.j
+        indx_j <- tail(which(df$P_i == player.j | df$P_j == player.j), 1)
+        if (length(indx_j) == 0) {
+          Elo_j <- 1500
+        } else {
+          if (df$P_i[indx_j] == player.j) {
+            Elo_j <- df$Elo_i_after_match[indx_j]
+          } else {
+            Elo_j <- df$Elo_j_after_match[indx_j]
+          }
+        }
+        
+        # Numero partite giocate
+        n_partite_i <- sum((df$P_i == player.i | df$P_j == player.i) & df$Comment == "Completed") + 1
+        n_partite_j <- sum((df$P_i == player.j | df$P_j == player.j) & df$Comment == "Completed") + 1 
+        print(n_partite_i)
+        print(n_partite_j)
+        
+        
+        # Calcolo probabilità
+        Elo_pi_hat <- tennis_prob(Elo_i, Elo_j)
+        
+        # --- B. DETERMINE OUTCOME & UPDATE ELO ---
+        # We check who is present in the "Round 2" vector to decide the winner
+        if (player.i %in% players_round2) {
+          # Player i WON
+          outcome_i <- 1
+          outcome_j <- 0
+          
+          # Calculate K-factors
+          K_Winner <- 250 / (n_partite_i + 5)^0.4
+          K_Loser  <- 250 / (n_partite_j + 5)^0.4
+          
+          # Update Elo
+          Elo_i_new <- Elo_i + K_Winner * (1 - Elo_pi_hat)
+          Elo_j_new <- Elo_j - K_Loser  * (1 - Elo_pi_hat)
+          
+        } else if (player.j %in% players_round2) {
+          # Player j WON
+          outcome_i <- 0
+          outcome_j <- 1
+          
+          # Calculate K-factors
+          K_Winner <- 250 / (n_partite_j + 5)^0.4
+          K_Loser  <- 250 / (n_partite_i + 5)^0.4
+          
+          # Update Elo
+          Elo_j_new <- Elo_j + K_Winner * (1 - (1 - Elo_pi_hat)) 
+          Elo_i_new <- Elo_i - K_Loser  * (1 - (1 - Elo_pi_hat))
+          
+        } else {
+          # Error handling
+          stop(paste("Error: Neither", player.i, "nor", player.j, "found in Round 2 players."))
+        }
+        
+        # --- C. SAVE RESULTS ---
+        player.i.vec <- c(player.i.vec, player.i)
+        player.j.vec <- c(player.j.vec, player.j)
+        Elo_i.vec <- c(Elo_i.vec, Elo_i)
+        Elo_j.vec <- c(Elo_j.vec, Elo_j)
+        n_partite_i.vec <- c(n_partite_i.vec, n_partite_i)
+        n_partite_j.vec <- c(n_partite_j.vec, n_partite_j)
+        Elo_pi_hat.vec <- c(Elo_pi_hat.vec, Elo_pi_hat)
+        
+        Outcome_i.vec <- c(Outcome_i.vec, outcome_i)
+        Outcome_j.vec <- c(Outcome_j.vec, outcome_j)
+        Elo_i_after.vec <- c(Elo_i_after.vec, Elo_i_new)
+        Elo_j_after.vec <- c(Elo_j_after.vec, Elo_j_new)
+      }
+      
+      # --- 4. CREATE THE UPDATE DATAFRAME ---
+      df_opening_round <- data.frame(
+        P_i = player.i.vec,
+        P_j = player.j.vec,
+        Outcome_P_i = Outcome_i.vec,
+        Outcome_P_j = Outcome_j.vec,
+        Elo_i_before_match = Elo_i.vec,
+        Elo_j_before_match = Elo_j.vec,
+        Elo_pi_hat = Elo_pi_hat.vec,
+        Elo_i_after_match = Elo_i_after.vec,
+        Elo_j_after_match = Elo_j_after.vec,
+        Comment = "Completed",
+        stringsAsFactors = FALSE
+      )
+      
+      # --- 5. MERGE WITH HISTORY ---
+      df_merged <- bind_rows(df, df_opening_round)
+      
+      tabella <- create_table(df_merged, players_round2)
+      
+      return(tabella)
+    }
+  }
 
-
+update_tournament_history <- function(number, X, df) {
+  
+  # --- INTERNAL HELPER: STANDARD ROUND PROCESSOR ---
+  # Handles standard 1v2, 3v4 matches (Round 2, QF, SF, etc.)
+  process_standard_round <- function(current_draw, next_round_winners, current_df) {
+    
+    # Initialize result vectors
+    P_i <- c(); P_j <- c(); Outcome_i <- c(); Outcome_j <- c()
+    Elo_i_vec <- c(); Elo_j_vec <- c(); Elo_pi_hat_vec <- c()
+    Elo_i_new_vec <- c(); Elo_j_new_vec <- c()
+    
+    # Loop through pairs (1vs2, 3vs4, etc.)
+    for (k in 1:(length(current_draw)/2)) {
+      player.i <- current_draw[(k-1)*2+1]
+      player.j <- current_draw[(k-1)*2+2]
+      
+      # 1. Get Elo (using latest current_df)
+      # Note: We look for the most recent match in the accumulating history
+      indx_i <- tail(which(current_df$P_i == player.i | current_df$P_j == player.i), 1)
+      Elo_i <- if(length(indx_i)==0) 1500 else ifelse(current_df$P_i[indx_i]==player.i, current_df$Elo_i_after_match[indx_i], current_df$Elo_j_after_match[indx_i])
+      
+      indx_j <- tail(which(current_df$P_i == player.j | current_df$P_j == player.j), 1)
+      Elo_j <- if(length(indx_j)==0) 1500 else ifelse(current_df$P_i[indx_j]==player.j, current_df$Elo_i_after_match[indx_j], current_df$Elo_j_after_match[indx_j])
+      
+      # 2. Get Match Count (Dynamic)
+      n_i <- sum((current_df$P_i == player.i | current_df$P_j == player.i) & current_df$Comment == "Completed") + 1
+      n_j <- sum((current_df$P_i == player.j | current_df$P_j == player.j) & current_df$Comment == "Completed") + 1 
+      
+      # 3. Probability
+      prob_i <- tennis_prob(Elo_i, Elo_j) # Ensure tennis_prob is loaded
+      
+      # 4. Determine Winner & Update
+      if (player.i %in% next_round_winners) {
+        out_i <- 1; out_j <- 0
+        K_W <- 250/((n_i+5)^0.4); K_L <- 250/((n_j+5)^0.4)
+        new_Ei <- Elo_i + K_W * (1 - prob_i)
+        new_Ej <- Elo_j - K_L * (1 - prob_i)
+      } else if (player.j %in% next_round_winners) {
+        out_i <- 0; out_j <- 1
+        K_W <- 250/((n_j+5)^0.4); K_L <- 250/((n_i+5)^0.4)
+        new_Ej <- Elo_j + K_W * (1 - (1 - prob_i))
+        new_Ei <- Elo_i - K_L * (1 - (1 - prob_i))
+      } else {
+        stop(paste("Error: Neither", player.i, "nor", player.j, "found in next round winners."))
+      }
+      
+      # 5. Append
+      P_i <- c(P_i, player.i); P_j <- c(P_j, player.j)
+      Outcome_i <- c(Outcome_i, out_i); Outcome_j <- c(Outcome_j, out_j)
+      Elo_i_vec <- c(Elo_i_vec, Elo_i); Elo_j_vec <- c(Elo_j_vec, Elo_j)
+      Elo_pi_hat_vec <- c(Elo_pi_hat_vec, prob_i)
+      Elo_i_new_vec <- c(Elo_i_new_vec, new_Ei); Elo_j_new_vec <- c(Elo_j_new_vec, new_Ej)
+    }
+    
+    new_rows <- data.frame(
+      P_i=P_i, P_j=P_j, Outcome_P_i=Outcome_i, Outcome_P_j=Outcome_j,
+      Elo_i_before_match=Elo_i_vec, Elo_j_before_match=Elo_j_vec,
+      Elo_pi_hat=Elo_pi_hat_vec,
+      Elo_i_after_match=Elo_i_new_vec, Elo_j_after_match=Elo_j_new_vec,
+      Comment="Completed", stringsAsFactors=FALSE
+    )
+    
+    return(bind_rows(current_df, new_rows))
+  }
+  
+  if (number == 28) {
+    
+    # Check minimum requirement (Round 1 must be present)
+    if (length(X) < 44) stop("Vector X is too short. It must contain at least 28 players + 16 Round 2 qualifiers.")
+    
+    if (length(X) >= 28 + 16){
+    
+    # Divide the vector: First 28 are the draw, last 16 are the Round 2 players
+    X_round1 <- X[1:28]
+    players_round2 <- X[29:44]
+    
+    # --- 1. INITIALIZE VECTORS ---
+    player.i.vec <- c()
+    player.j.vec <- c()
+    Elo_i.vec <- c()
+    Elo_j.vec <- c()
+    n_partite_i.vec <- c()
+    n_partite_j.vec <- c()
+    Elo_pi_hat.vec <- c()
+    
+    # New vectors for the results and updates
+    Outcome_i.vec <- c()
+    Outcome_j.vec <- c()
+    Elo_i_after.vec <- c()
+    Elo_j_after.vec <- c()
+    
+    # --- 2. SPLIT THE DRAW (Vector Division for Round 1 Matches) ---
+    # Indices to exclude (The Byes)
+    rows_to_exclude <- c(1, 8, 21, 28)
+    
+    # X_new contains the 24 players playing in the opening round (12 matches)
+    X_new <- X_round1[-rows_to_exclude] 
+    
+    # --- 3. LOOP THROUGH THE 12 MATCHES ---
+    for (i in 1:(length(X_new)/2)) {
+      player.i <- X_new[(i-1)*2+1]
+      player.j <- X_new[(i-1)*2+2]
+      
+      # --- A. FIND PRE-MATCH ELO ---
+      # Trovo Elo player.i
+      indx_i <- tail(which(df$P_i == player.i | df$P_j == player.i), 1)
+      if (length(indx_i) == 0) {
+        Elo_i <- 1500
+      } else {
+        if (df$P_i[indx_i] == player.i) {
+          Elo_i <- df$Elo_i_after_match[indx_i]
+        } else {
+          Elo_i <- df$Elo_j_after_match[indx_i]
+        }
+      }
+      
+      # Trovo Elo player.j
+      indx_j <- tail(which(df$P_i == player.j | df$P_j == player.j), 1)
+      if (length(indx_j) == 0) {
+        Elo_j <- 1500
+      } else {
+        if (df$P_i[indx_j] == player.j) {
+          Elo_j <- df$Elo_i_after_match[indx_j]
+        } else {
+          Elo_j <- df$Elo_j_after_match[indx_j]
+        }
+      }
+      
+      # Numero partite giocate
+      n_partite_i <- sum((df$P_i == player.i | df$P_j == player.i) & df$Comment == "Completed") + 1
+      n_partite_j <- sum((df$P_i == player.j | df$P_j == player.j) & df$Comment == "Completed") + 1 
+      
+      
+      # Calcolo probabilità
+      Elo_pi_hat <- tennis_prob(Elo_i, Elo_j)
+      
+      # --- B. DETERMINE OUTCOME & UPDATE ELO ---
+      # We check who is present in the "Round 2" vector to decide the winner
+      if (player.i %in% players_round2) {
+        # Player i WON
+        outcome_i <- 1
+        outcome_j <- 0
+        
+        # Calculate K-factors
+        K_Winner <- 250 / (n_partite_i + 5)^0.4
+        K_Loser  <- 250 / (n_partite_j + 5)^0.4
+        
+        # Update Elo
+        Elo_i_new <- Elo_i + K_Winner * (1 - Elo_pi_hat)
+        Elo_j_new <- Elo_j - K_Loser  * (1 - Elo_pi_hat)
+        
+      } else if (player.j %in% players_round2) {
+        # Player j WON
+        outcome_i <- 0
+        outcome_j <- 1
+        
+        # Calculate K-factors
+        K_Winner <- 250 / (n_partite_j + 5)^0.4
+        K_Loser  <- 250 / (n_partite_i + 5)^0.4
+        
+        # Update Elo
+        Elo_j_new <- Elo_j + K_Winner * (1 - (1 - Elo_pi_hat)) 
+        Elo_i_new <- Elo_i - K_Loser  * (1 - (1 - Elo_pi_hat))
+        
+      } else {
+        # Error handling
+        stop(paste("Error: Neither", player.i, "nor", player.j, "found in Round 2 players."))
+      }
+      
+      # --- C. SAVE RESULTS ---
+      player.i.vec <- c(player.i.vec, player.i)
+      player.j.vec <- c(player.j.vec, player.j)
+      Elo_i.vec <- c(Elo_i.vec, Elo_i)
+      Elo_j.vec <- c(Elo_j.vec, Elo_j)
+      n_partite_i.vec <- c(n_partite_i.vec, n_partite_i)
+      n_partite_j.vec <- c(n_partite_j.vec, n_partite_j)
+      Elo_pi_hat.vec <- c(Elo_pi_hat.vec, Elo_pi_hat)
+      
+      Outcome_i.vec <- c(Outcome_i.vec, outcome_i)
+      Outcome_j.vec <- c(Outcome_j.vec, outcome_j)
+      Elo_i_after.vec <- c(Elo_i_after.vec, Elo_i_new)
+      Elo_j_after.vec <- c(Elo_j_after.vec, Elo_j_new)
+    }
+    
+    # --- 4. CREATE THE UPDATE DATAFRAME ---
+    df_opening_round <- data.frame(
+      P_i = player.i.vec,
+      P_j = player.j.vec,
+      Outcome_P_i = Outcome_i.vec,
+      Outcome_P_j = Outcome_j.vec,
+      Elo_i_before_match = Elo_i.vec,
+      Elo_j_before_match = Elo_j.vec,
+      Elo_pi_hat = Elo_pi_hat.vec,
+      Elo_i_after_match = Elo_i_after.vec,
+      Elo_j_after_match = Elo_j_after.vec,
+      Comment = "Completed",
+      stringsAsFactors = FALSE
+    )
+    
+    # --- 5. MERGE WITH HISTORY ---
+    df <- bind_rows(df, df_opening_round)
+    tabella <- create_table(df, players_round2)
+    tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+  }
+    
+    # --- PHASE 2: ROUND OF 16 (16 -> 8) ---
+    if (length(X) >= 52) {
+      cat("Processing Round of 16...\n")
+      X_QF <- X[45:52] # The next 8 players
+      df <- process_standard_round(players_round2, X_QF, df)
+      tabella <- create_table(df, X_QF)
+      tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+      
+    }
+    
+    # --- PHASE 3: QUARTERFINALS (8 -> 4) ---
+    if (length(X) >= 56) {
+      cat("Processing Quarterfinals...\n")
+      X_SF <- X[53:56] # The next 4 players
+      df <- process_standard_round(X_QF, X_SF, df)
+      tabella <- create_table(df, X_SF)
+      tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+    }
+    
+    # --- PHASE 4: SEMIFINALS (4 -> 2) ---
+    if (length(X) >= 58) {
+      cat("Processing Semifinals...\n")
+      X_F <- X[57:58] # The next 2 players
+      df <- process_standard_round(X_SF, X_F, df)
+      tabella <- create_table(df, X_F)
+      tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+      
+    }
+    
+    # --- PHASE 5: FINAL (2 -> 1) ---
+    if (length(X) == 59) {
+      cat("Processing Final...\n")
+      X_W <- X[59] # The Winner
+      df <- process_standard_round(X_F, X_W, df)
+    }
+  
+    assign("df", df, envir = .GlobalEnv)
+    return(tabella)
+  } 
+  else if (number == 32) {
+    
+    # Check minimum requirement: Draw (32) + Round 2 Winners (16) = 48
+    if (length(X) < 48) stop("Vector X is too short. For 32 players, it must contain at least 32 (draw) + 16 (Round 2).")
+    
+    # 1. Define the Draw and Round 2 Winners
+    X_draw <- X[1:32]
+    X_R16  <- X[33:48] # The 16 winners of Round 1
+    
+    # --- PHASE 1: ROUND OF 32 (Everyone Plays) ---
+    cat("Processing Round of 32...\n")
+    # Since there are no byes, we can treat this exactly like a standard round!
+    df <- process_standard_round(X_draw, X_R16, df)
+    
+    # Prepare the table for the NEXT round (Round of 16)
+    tabella <- create_table(df, X_R16)
+    tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+    
+    # --- PHASE 2: ROUND OF 16 (16 -> 8) ---
+    if (length(X) >= 56) { # 48 + 8 QF
+      cat("Processing Round of 16...\n")
+      X_QF <- X[49:56] # Next 8 players
+      df <- process_standard_round(X_R16, X_QF, df)
+      tabella <- create_table(df, X_QF)
+      tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+      
+      # --- PHASE 3: QUARTERFINALS (8 -> 4) ---
+      if (length(X) >= 60) { # 56 + 4 SF
+        cat("Processing Quarterfinals...\n")
+        X_SF <- X[57:60] # Next 4 players
+        df <- process_standard_round(X_QF, X_SF, df)
+        tabella <- create_table(df, X_SF)
+        tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+        
+        # --- PHASE 4: SEMIFINALS (4 -> 2) ---
+        if (length(X) >= 62) { # 60 + 2 F
+          cat("Processing Semifinals...\n")
+          X_F <- X[61:62] # Next 2 players
+          df <- process_standard_round(X_SF, X_F, df)
+          tabella <- create_table(df, X_F)
+          tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+          
+          # --- PHASE 5: FINAL (2 -> 1) ---
+          if (length(X) == 63) { # 62 + 1 Winner
+            cat("Processing Final...\n")
+            X_W <- X[63] # The Winner
+            df <- process_standard_round(X_F, X_W, df)
+          }
+        }
+      }
+    }
+  }
+  else if (number == 48) {
+    
+    # Check minimum requirement: Draw (48) + Round 2 Survivors (32) = 80
+    if (length(X) < 80) stop("Vector X is too short. For 48 players, it must contain at least 48 (draw) + 32 (Round 2 survivors).")
+    
+    # Divide the vector: First 48 are the draw, next 32 are the Round 2 players
+    X_round1 <- X[1:48]
+    players_round2 <- X[49:80]
+    
+    # --- PHASE 1: OPENING ROUND (Specific Logic for Byes) ---
+    
+    # 1. INITIALIZE VECTORS
+    player.i.vec <- c(); player.j.vec <- c()
+    Elo_i.vec <- c(); Elo_j.vec <- c()
+    Elo_pi_hat.vec <- c()
+    Outcome_i.vec <- c(); Outcome_j.vec <- c()
+    Elo_i_after.vec <- c(); Elo_j_after.vec <- c()
+    
+    # 2. SPLIT THE DRAW 
+    # Indices to exclude (The 16 Byes provided)
+    rows_to_exclude <- c(1, 6, 7, 12, 13, 18, 19, 24, 25, 30, 31, 36, 37, 42, 43, 48)
+    
+    # X_new contains the 32 players playing in the opening round (16 matches)
+    X_new <- X_round1[-rows_to_exclude] 
+    
+    # 3. LOOP THROUGH THE 16 MATCHES
+    for (i in 1:(length(X_new)/2)) {
+      player.i <- X_new[(i-1)*2+1]
+      player.j <- X_new[(i-1)*2+2]
+      
+      # --- A. FIND PRE-MATCH ELO ---
+      indx_i <- tail(which(df$P_i == player.i | df$P_j == player.i), 1)
+      Elo_i <- if(length(indx_i)==0) 1500 else ifelse(df$P_i[indx_i]==player.i, df$Elo_i_after_match[indx_i], df$Elo_j_after_match[indx_i])
+      
+      indx_j <- tail(which(df$P_i == player.j | df$P_j == player.j), 1)
+      Elo_j <- if(length(indx_j)==0) 1500 else ifelse(df$P_i[indx_j]==player.j, df$Elo_i_after_match[indx_j], df$Elo_j_after_match[indx_j])
+      
+      # Numero partite giocate
+      n_partite_i <- sum((df$P_i == player.i | df$P_j == player.i) & df$Comment == "Completed") + 1
+      n_partite_j <- sum((df$P_i == player.j | df$P_j == player.j) & df$Comment == "Completed") + 1 
+      
+      # Calcolo probabilità
+      Elo_pi_hat <- tennis_prob(Elo_i, Elo_j)
+      
+      # --- B. DETERMINE OUTCOME & UPDATE ELO ---
+      # Check who is present in the "Round 2" vector
+      if (player.i %in% players_round2) {
+        outcome_i <- 1; outcome_j <- 0
+        K_Winner <- 250 / (n_partite_i + 5)^0.4; K_Loser  <- 250 / (n_partite_j + 5)^0.4
+        Elo_i_new <- Elo_i + K_Winner * (1 - Elo_pi_hat)
+        Elo_j_new <- Elo_j - K_Loser  * (1 - Elo_pi_hat)
+      } else if (player.j %in% players_round2) {
+        outcome_i <- 0; outcome_j <- 1
+        K_Winner <- 250 / (n_partite_j + 5)^0.4; K_Loser  <- 250 / (n_partite_i + 5)^0.4
+        Elo_j_new <- Elo_j + K_Winner * (1 - (1 - Elo_pi_hat)) 
+        Elo_i_new <- Elo_i - K_Loser  * (1 - (1 - Elo_pi_hat))
+      } else {
+        stop(paste("Error: Neither", player.i, "nor", player.j, "found in Round 2 players."))
+      }
+      
+      # --- C. SAVE RESULTS ---
+      player.i.vec <- c(player.i.vec, player.i); player.j.vec <- c(player.j.vec, player.j)
+      Elo_i.vec <- c(Elo_i.vec, Elo_i); Elo_j.vec <- c(Elo_j.vec, Elo_j)
+      Elo_pi_hat.vec <- c(Elo_pi_hat.vec, Elo_pi_hat)
+      Outcome_i.vec <- c(Outcome_i.vec, outcome_i); Outcome_j.vec <- c(Outcome_j.vec, outcome_j)
+      Elo_i_after.vec <- c(Elo_i_after.vec, Elo_i_new); Elo_j_after.vec <- c(Elo_j_after.vec, Elo_j_new)
+    }
+    
+    # 4. CREATE & MERGE DATAFRAME
+    df_opening_round <- data.frame(
+      P_i = player.i.vec, P_j = player.j.vec,
+      Outcome_P_i = Outcome_i.vec, Outcome_P_j = Outcome_j.vec,
+      Elo_i_before_match = Elo_i.vec, Elo_j_before_match = Elo_j.vec,
+      Elo_pi_hat = Elo_pi_hat.vec,
+      Elo_i_after_match = Elo_i_after.vec, Elo_j_after_match = Elo_j_after.vec,
+      Comment = "Completed", stringsAsFactors = FALSE
+    )
+    
+    df <- bind_rows(df, df_opening_round)
+    
+    # Prepare the table for the NEXT round (Round of 32)
+    tabella <- create_table(df, players_round2)
+    tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+    
+    # --- PHASE 2: ROUND OF 32 (32 -> 16) ---
+    if (length(X) >= 96) { # 80 + 16 R16 survivors
+      cat("Processing Round of 32...\n")
+      X_R16 <- X[81:96] 
+      df <- process_standard_round(players_round2, X_R16, df)
+      tabella <- create_table(df, X_R16)
+      tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+      
+      # --- PHASE 3: ROUND OF 16 (16 -> 8) ---
+      if (length(X) >= 104) { # 96 + 8 QF survivors
+        cat("Processing Round of 16...\n")
+        X_QF <- X[97:104]
+        df <- process_standard_round(X_R16, X_QF, df)
+        tabella <- create_table(df, X_QF)
+        tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+        
+        # --- PHASE 4: QUARTERFINALS (8 -> 4) ---
+        if (length(X) >= 108) { # 104 + 4 SF survivors
+          cat("Processing Quarterfinals...\n")
+          X_SF <- X[105:108]
+          df <- process_standard_round(X_QF, X_SF, df)
+          tabella <- create_table(df, X_SF)
+          tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+          
+          # --- PHASE 5: SEMIFINALS (4 -> 2) ---
+          if (length(X) >= 110) { # 108 + 2 F survivors
+            cat("Processing Semifinals...\n")
+            X_F <- X[109:110]
+            df <- process_standard_round(X_SF, X_F, df)
+            tabella <- create_table(df, X_F)
+            tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+            
+            # --- PHASE 6: FINAL (2 -> 1) ---
+            if (length(X) == 111) { # 110 + 1 Winner
+              cat("Processing Final...\n")
+              X_W <- X[111]
+              df <- process_standard_round(X_F, X_W, df)
+            }
+          }
+        }
+      }
+    }
+  }
+  else if (number == 96) {
+    
+    # Check minimum requirement: Draw (96) + Round 2 Survivors (64) = 160
+    if (length(X) < 160) stop("Vector X is too short. For 96 players, it must contain at least 96 (draw) + 64 (Round 2 survivors).")
+    
+    # Divide the vector: First 96 are the draw, next 64 are the Round 2 players
+    X_round1 <- X[1:96]
+    players_round2 <- X[97:160] # The 64 players in Round 2
+    
+    # --- PHASE 1: OPENING ROUND (Specific Logic for 32 Byes) ---
+    
+    # 1. INITIALIZE VECTORS
+    player.i.vec <- c(); player.j.vec <- c()
+    Elo_i.vec <- c(); Elo_j.vec <- c()
+    Elo_pi_hat.vec <- c()
+    Outcome_i.vec <- c(); Outcome_j.vec <- c()
+    Elo_i_after.vec <- c(); Elo_j_after.vec <- c()
+    
+    # 2. SPLIT THE DRAW 
+    # Indices to exclude (The 32 Byes provided)
+    rows_to_exclude <- c(1, 6, 7, 12, 13, 18, 19, 24, 25, 30, 31, 36, 37, 42, 43, 48, 
+                         49, 54, 55, 60, 61, 66, 67, 72, 73, 78, 79, 84, 85, 90, 91, 96)
+    
+    # X_new contains the 64 players playing in the opening round (32 matches)
+    X_new <- X_round1[-rows_to_exclude] 
+    
+    # 3. LOOP THROUGH THE 32 MATCHES
+    for (i in 1:(length(X_new)/2)) {
+      player.i <- X_new[(i-1)*2+1]
+      player.j <- X_new[(i-1)*2+2]
+      
+      # --- A. FIND PRE-MATCH ELO ---
+      indx_i <- tail(which(df$P_i == player.i | df$P_j == player.i), 1)
+      Elo_i <- if(length(indx_i)==0) 1500 else ifelse(df$P_i[indx_i]==player.i, df$Elo_i_after_match[indx_i], df$Elo_j_after_match[indx_i])
+      
+      indx_j <- tail(which(df$P_i == player.j | df$P_j == player.j), 1)
+      Elo_j <- if(length(indx_j)==0) 1500 else ifelse(df$P_i[indx_j]==player.j, df$Elo_i_after_match[indx_j], df$Elo_j_after_match[indx_j])
+      
+      # Numero partite giocate
+      n_partite_i <- sum((df$P_i == player.i | df$P_j == player.i) & df$Comment == "Completed") + 1
+      n_partite_j <- sum((df$P_i == player.j | df$P_j == player.j) & df$Comment == "Completed") + 1 
+      
+      # Calcolo probabilità
+      Elo_pi_hat <- tennis_prob(Elo_i, Elo_j)
+      
+      # --- B. DETERMINE OUTCOME & UPDATE ELO ---
+      if (player.i %in% players_round2) {
+        outcome_i <- 1; outcome_j <- 0
+        K_Winner <- 250 / (n_partite_i + 5)^0.4; K_Loser  <- 250 / (n_partite_j + 5)^0.4
+        Elo_i_new <- Elo_i + K_Winner * (1 - Elo_pi_hat)
+        Elo_j_new <- Elo_j - K_Loser  * (1 - Elo_pi_hat)
+      } else if (player.j %in% players_round2) {
+        outcome_i <- 0; outcome_j <- 1
+        K_Winner <- 250 / (n_partite_j + 5)^0.4; K_Loser  <- 250 / (n_partite_i + 5)^0.4
+        Elo_j_new <- Elo_j + K_Winner * Elo_pi_hat
+        Elo_i_new <- Elo_i - K_Loser  * Elo_pi_hat
+      } else {
+        stop(paste("Error: Neither", player.i, "nor", player.j, "found in Round 2 players."))
+      }
+      
+      # --- C. SAVE RESULTS ---
+      player.i.vec <- c(player.i.vec, player.i); player.j.vec <- c(player.j.vec, player.j)
+      Elo_i.vec <- c(Elo_i.vec, Elo_i); Elo_j.vec <- c(Elo_j.vec, Elo_j)
+      Elo_pi_hat.vec <- c(Elo_pi_hat.vec, Elo_pi_hat)
+      Outcome_i.vec <- c(Outcome_i.vec, outcome_i); Outcome_j.vec <- c(Outcome_j.vec, outcome_j)
+      Elo_i_after.vec <- c(Elo_i_after.vec, Elo_i_new); Elo_j_after.vec <- c(Elo_j_after.vec, Elo_j_new)
+    }
+    
+    # 4. MERGE R1 RESULTS
+    df_opening_round <- data.frame(
+      P_i = player.i.vec, P_j = player.j.vec,
+      Outcome_P_i = Outcome_i.vec, Outcome_P_j = Outcome_j.vec,
+      Elo_i_before_match = Elo_i.vec, Elo_j_before_match = Elo_j.vec,
+      Elo_pi_hat = Elo_pi_hat.vec,
+      Elo_i_after_match = Elo_i_after.vec, Elo_j_after_match = Elo_j_after.vec,
+      Comment = "Completed", stringsAsFactors = FALSE
+    )
+    df <- bind_rows(df, df_opening_round)
+    
+    # Prepare table for R2
+    tabella <- create_table(df, players_round2)
+    tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+    
+    # --- PHASE 2: ROUND OF 64 (64 -> 32) ---
+    if (length(X) >= 192) { # 160 + 32 R3 survivors
+      cat("Processing Round of 64...\n")
+      X_R32 <- X[161:192] 
+      df <- process_standard_round(players_round2, X_R32, df)
+      tabella <- create_table(df, X_R32)
+      tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+      
+      # --- PHASE 3: ROUND OF 32 (32 -> 16) ---
+      if (length(X) >= 208) { # 192 + 16 R4 survivors
+        cat("Processing Round of 32...\n")
+        X_R16 <- X[193:208]
+        df <- process_standard_round(X_R32, X_R16, df)
+        tabella <- create_table(df, X_R16)
+        tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+        
+        # --- PHASE 4: ROUND OF 16 (16 -> 8) ---
+        if (length(X) >= 216) { # 208 + 8 QF survivors
+          cat("Processing Round of 16...\n")
+          X_QF <- X[209:216]
+          df <- process_standard_round(X_R16, X_QF, df)
+          tabella <- create_table(df, X_QF)
+          tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+          
+          # --- PHASE 5: QUARTERFINALS (8 -> 4) ---
+          if (length(X) >= 220) { # 216 + 4 SF survivors
+            cat("Processing Quarterfinals...\n")
+            X_SF <- X[217:220]
+            df <- process_standard_round(X_QF, X_SF, df)
+            tabella <- create_table(df, X_SF)
+            tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+            
+            # --- PHASE 6: SEMIFINALS (4 -> 2) ---
+            if (length(X) >= 222) { # 220 + 2 F survivors
+              cat("Processing Semifinals...\n")
+              X_F <- X[221:222]
+              df <- process_standard_round(X_SF, X_F, df)
+              tabella <- create_table(df, X_F)
+              tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+              
+              # --- PHASE 7: FINAL (2 -> 1) ---
+              if (length(X) == 223) { # 222 + 1 Winner
+                cat("Processing Final...\n")
+                X_W <- X[223]
+                df <- process_standard_round(X_F, X_W, df)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  else if (number == 56) {
+    
+    # Check minimum requirement: Draw (56) + Round 2 Survivors (32) = 88
+    if (length(X) < 88) stop("Vector X is too short. For 56 players, it must contain at least 56 (draw) + 32 (Round 2 survivors).")
+    
+    # Divide the vector: First 56 are the draw, next 32 are the Round 2 players
+    X_round1 <- X[1:56]
+    players_round2 <- X[57:88] # The 32 players in Round 2
+    
+    # --- PHASE 1: OPENING ROUND (Specific Logic for 8 Byes) ---
+    
+    # 1. INITIALIZE VECTORS
+    player.i.vec <- c(); player.j.vec <- c()
+    Elo_i.vec <- c(); Elo_j.vec <- c()
+    Elo_pi_hat.vec <- c()
+    Outcome_i.vec <- c(); Outcome_j.vec <- c()
+    Elo_i_after.vec <- c(); Elo_j_after.vec <- c()
+    
+    # 2. SPLIT THE DRAW 
+    # Indices to exclude (The 8 Byes provided)
+    rows_to_exclude <- c(1, 14, 15, 28, 29, 42, 43, 56)
+    
+    # X_new contains the 48 players playing in the opening round (24 matches)
+    X_new <- X_round1[-rows_to_exclude] 
+    
+    # 3. LOOP THROUGH THE 24 MATCHES
+    for (i in 1:(length(X_new)/2)) {
+      player.i <- X_new[(i-1)*2+1]
+      player.j <- X_new[(i-1)*2+2]
+      
+      # --- A. FIND PRE-MATCH ELO ---
+      indx_i <- tail(which(df$P_i == player.i | df$P_j == player.i), 1)
+      Elo_i <- if(length(indx_i)==0) 1500 else ifelse(df$P_i[indx_i]==player.i, df$Elo_i_after_match[indx_i], df$Elo_j_after_match[indx_i])
+      
+      indx_j <- tail(which(df$P_i == player.j | df$P_j == player.j), 1)
+      Elo_j <- if(length(indx_j)==0) 1500 else ifelse(df$P_i[indx_j]==player.j, df$Elo_i_after_match[indx_j], df$Elo_j_after_match[indx_j])
+      
+      # Numero partite giocate
+      n_partite_i <- sum((df$P_i == player.i | df$P_j == player.i) & df$Comment == "Completed") + 1
+      n_partite_j <- sum((df$P_i == player.j | df$P_j == player.j) & df$Comment == "Completed") + 1 
+      
+      # Calcolo probabilità
+      Elo_pi_hat <- tennis_prob(Elo_i, Elo_j)
+      
+      # --- B. DETERMINE OUTCOME & UPDATE ELO ---
+      if (player.i %in% players_round2) {
+        outcome_i <- 1; outcome_j <- 0
+        K_Winner <- 250 / (n_partite_i + 5)^0.4; K_Loser  <- 250 / (n_partite_j + 5)^0.4
+        Elo_i_new <- Elo_i + K_Winner * (1 - Elo_pi_hat)
+        Elo_j_new <- Elo_j - K_Loser  * (1 - Elo_pi_hat)
+      } else if (player.j %in% players_round2) {
+        outcome_i <- 0; outcome_j <- 1
+        K_Winner <- 250 / (n_partite_j + 5)^0.4; K_Loser  <- 250 / (n_partite_i + 5)^0.4
+        Elo_j_new <- Elo_j + K_Winner * Elo_pi_hat
+        Elo_i_new <- Elo_i - K_Loser  * Elo_pi_hat
+      } else {
+        stop(paste("Error: Neither", player.i, "nor", player.j, "found in Round 2 players."))
+      }
+      
+      # --- C. SAVE RESULTS ---
+      player.i.vec <- c(player.i.vec, player.i); player.j.vec <- c(player.j.vec, player.j)
+      Elo_i.vec <- c(Elo_i.vec, Elo_i); Elo_j.vec <- c(Elo_j.vec, Elo_j)
+      Elo_pi_hat.vec <- c(Elo_pi_hat.vec, Elo_pi_hat)
+      Outcome_i.vec <- c(Outcome_i.vec, outcome_i); Outcome_j.vec <- c(Outcome_j.vec, outcome_j)
+      Elo_i_after.vec <- c(Elo_i_after.vec, Elo_i_new); Elo_j_after.vec <- c(Elo_j_after.vec, Elo_j_new)
+    }
+    
+    # 4. MERGE R1 RESULTS
+    df_opening_round <- data.frame(
+      P_i = player.i.vec, P_j = player.j.vec,
+      Outcome_P_i = Outcome_i.vec, Outcome_P_j = Outcome_j.vec,
+      Elo_i_before_match = Elo_i.vec, Elo_j_before_match = Elo_j.vec,
+      Elo_pi_hat = Elo_pi_hat.vec,
+      Elo_i_after_match = Elo_i_after.vec, Elo_j_after_match = Elo_j_after.vec,
+      Comment = "Completed", stringsAsFactors = FALSE
+    )
+    df <- bind_rows(df, df_opening_round)
+    
+    # Prepare table for R2
+    tabella <- create_table(df, players_round2)
+    tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+    
+    # --- PHASE 2: ROUND OF 32 (32 -> 16) ---
+    if (length(X) >= 104) { # 88 + 16 R16 survivors
+      cat("Processing Round of 32...\n")
+      X_R16 <- X[89:104] 
+      df <- process_standard_round(players_round2, X_R16, df)
+      tabella <- create_table(df, X_R16)
+      tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+      
+      # --- PHASE 3: ROUND OF 16 (16 -> 8) ---
+      if (length(X) >= 112) { # 104 + 8 QF survivors
+        cat("Processing Round of 16...\n")
+        X_QF <- X[105:112]
+        df <- process_standard_round(X_R16, X_QF, df)
+        tabella <- create_table(df, X_QF)
+        tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+        
+        # --- PHASE 4: QUARTERFINALS (8 -> 4) ---
+        if (length(X) >= 116) { # 112 + 4 SF survivors
+          cat("Processing Quarterfinals...\n")
+          X_SF <- X[113:116]
+          df <- process_standard_round(X_QF, X_SF, df)
+          tabella <- create_table(df, X_SF)
+          tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+          
+          # --- PHASE 5: SEMIFINALS (4 -> 2) ---
+          if (length(X) >= 118) { # 116 + 2 F survivors
+            cat("Processing Semifinals...\n")
+            X_F <- X[117:118]
+            df <- process_standard_round(X_SF, X_F, df)
+            tabella <- create_table(df, X_F)
+            tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+            
+            # --- PHASE 6: FINAL (2 -> 1) ---
+            if (length(X) == 119) { # 118 + 1 Winner
+              cat("Processing Final...\n")
+              X_W <- X[119]
+              df <- process_standard_round(X_F, X_W, df)
+            }
+          }
+        }
+      }
+    }
+  }
+  else if (number == 128) {
+    
+    # Check minimum requirement: Draw (128) + Round 2 Survivors (64) = 192
+    if (length(X) < 192) stop("Vector X is too short. For 128 players, it must contain at least 128 (draw) + 64 (Round 2 survivors).")
+    
+    # 1. Define the Draw and Round 2 Survivors (Round of 64)
+    X_draw <- X[1:128]
+    X_R64  <- X[129:192] # The 64 winners of Round 1
+    
+    # --- PHASE 1: ROUND OF 128 (128 -> 64) ---
+    cat("Processing Round of 128...\n")
+    df <- process_standard_round(X_draw, X_R64, df)
+    
+    # Prepare table for the NEXT round (Round of 64)
+    tabella <- create_table(df, X_R64)
+    tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+    
+    # --- PHASE 2: ROUND OF 64 (64 -> 32) ---
+    if (length(X) >= 224) { # 192 + 32 survivors
+      cat("Processing Round of 64...\n")
+      X_R32 <- X[193:224] # Next 32 players
+      df <- process_standard_round(X_R64, X_R32, df)
+      tabella <- create_table(df, X_R32)
+      tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+      
+      # --- PHASE 3: ROUND OF 32 (32 -> 16) ---
+      if (length(X) >= 240) { # 224 + 16 survivors
+        cat("Processing Round of 32...\n")
+        X_R16 <- X[225:240] # Next 16 players
+        df <- process_standard_round(X_R32, X_R16, df)
+        tabella <- create_table(df, X_R16)
+        tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+        
+        # --- PHASE 4: ROUND OF 16 (16 -> 8) ---
+        if (length(X) >= 248) { # 240 + 8 survivors
+          cat("Processing Round of 16...\n")
+          X_QF <- X[241:248] # Next 8 players
+          df <- process_standard_round(X_R16, X_QF, df)
+          tabella <- create_table(df, X_QF)
+          tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+          
+          # --- PHASE 5: QUARTERFINALS (8 -> 4) ---
+          if (length(X) >= 252) { # 248 + 4 survivors
+            cat("Processing Quarterfinals...\n")
+            X_SF <- X[249:252] # Next 4 players
+            df <- process_standard_round(X_QF, X_SF, df)
+            tabella <- create_table(df, X_SF)
+            tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+            
+            # --- PHASE 6: SEMIFINALS (4 -> 2) ---
+            if (length(X) >= 254) { # 252 + 2 survivors
+              cat("Processing Semifinals...\n")
+              X_F <- X[253:254] # Next 2 players
+              df <- process_standard_round(X_SF, X_F, df)
+              tabella <- create_table(df, X_F)
+              tabella$Elo_pi_hat <- tennis_prob(tabella$Elo_i, tabella$Elo_j)
+              
+              # --- PHASE 7: FINAL (2 -> 1) ---
+              if (length(X) == 255) { # 254 + 1 Winner
+                cat("Processing Final...\n")
+                X_W <- X[255] # The Winner
+                df <- process_standard_round(X_F, X_W, df)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  else {
+    stop(paste("Error: The tournament size", number, "is not supported. This function currently only supports tournament sizes of 28, 32, 48, 56, 96, and 128."))
+  }
+  
+  # Final Global Update and Return
+  assign("df", df, envir = .GlobalEnv)
+  return(tabella)
+}
 
 
 
